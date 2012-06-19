@@ -1,0 +1,25 @@
+\name{summary.represampling}
+\alias{summary.represampling}
+\alias{summary.resampling}
+\title{Summary statistics for a resampling objects}
+\usage{
+  \method{summary}{represampling} (object, ...)
+
+  \method{summary}{resampling} (object, ...)
+}
+\arguments{
+  \item{object}{A \code{resampling} or \code{represampling}
+  object.}
+
+  \item{...}{currently ignored}
+}
+\value{
+  A list of \code{data.frame}s summarizing the sample sizes
+  of training and test sets in each fold of each repetition
+}
+\description{
+  Calculates sample sizes of training and test sets within
+  repetitions and folds of a \code{resampling} or
+  \code{represampling} object.
+}
+
