@@ -5,8 +5,8 @@ Title: Perform Spatial Error Estimation and Variable Importance in
 Description: Implements spatial error estimation and 
    permutation-based variable importance measures for predictive models using 
    spatial cross-validation and spatial block bootstrap.
-Version: 2.0.0
-Date: 2017-06-12
+Version: 2.0.1
+Date: 2017-07-20
 Authors@R: c(
       person("Alexander", "Brenning", , "alexander.brenning@uni-jena.de",
         c("aut", "cre")),
@@ -27,10 +27,10 @@ ByteCompile: true
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2017-06-13 11:53:18 UTC; pjs
+Packaged: 2017-07-20 22:25:52 UTC; pjs
 Author: Alexander Brenning [aut, cre],
   Patrick Schratz [aut],
   Tobias Herrmann [aut]
 Maintainer: Alexander Brenning <alexander.brenning@uni-jena.de>
 Repository: CRAN
-Date/Publication: 2017-06-13 12:21:07 UTC
+Date/Publication: 2017-07-21 06:10:54 UTC

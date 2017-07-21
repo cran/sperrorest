@@ -1,9 +1,9 @@
-209acca9ef5cca862ef8979722fa5271 *DESCRIPTION
+c1530f1a5f2fe252ac7fe94c58e4ceda *DESCRIPTION
 26304577ac38c20adc5bd7f461deba5c *NAMESPACE
-ef9a808c04de9fc545ca717ac3a3f82f *NEWS
-aa93903d3ab656c3f0be6cf73aa9ff4a *NEWS.md
+fc06b2509b6d7ee7b486105bef13cbac *NEWS
+1b72847bd327fb76867f2f34b7c3af1e *NEWS.md
 8bb4097bc502dee2b873e79f77df7ba9 *R/helper_funs.R
-37998ca6766cfde1d8391284ee8576fe *R/processing.R
+6a4901eac9356fa8448c584bd40c5862 *R/processing.R
 2c9f79ef4de534b53a45f67c7b892eab *R/resample.R
 3ec84c742216dba237ba4efecb59c988 *R/sperrorest-package.R
 96300f62a6cfdac820ccfe88671b8aa2 *R/sperrorest.R
@@ -12,8 +12,8 @@ aa93903d3ab656c3f0be6cf73aa9ff4a *NEWS.md
 1fc2c801fe706e849c985356c84c050a *R/sperrorest_misc.R
 25a6a1dee78bad529f70f38306daa52d *R/sperrorest_resampling.R
 b76b971f25ea1d78a946a32dc8cff5b7 *R/summary_functions.R
-730febb415b85cd2e0e7bec2a8c66957 *README.md
-a887681083202c22d24551e5acd05bb5 *build/vignette.rds
+0b4a6651778705bcb3dc6484fe082638 *README.md
+a9429b13a607267e370488a32983981e *build/vignette.rds
 8e0f88e7a261d64021a03ff647aa65fb *data/ecuador.rda
 e578d3597baaa598ee1299f414343f3d *data/maipo.rda
 3366dacda335da40bbf805ac9f1fbf6e *inst/CITATION
@@ -35,6 +35,11 @@ f3fec4800a8314b01672756e7fedf982 *inst/testfiles/parsperrorest.testing.Rmd
 73e01c3377a8393a5c600ee4a382413a *inst/testfiles/parsperrorest_old.R
 b7c243e0f71cb31c8a4b8a90818deaa8 *inst/testfiles/spatial-tuning-comparison.Rmd
 c2390a61cd096816cf64804823c71a0b *inst/testfiles/spatial-tuning-comparison.nb.html
+c367ca1bb786bab6f209da607426d429 *inst/testfiles/sptune_input.rda
+ddde59ff0302cd8342ef4677aa4bbdfa *inst/testfiles/svm_cv_err_input.rda
+eaa1908e82518f3017b658b9604bd992 *inst/testfiles/svm_cv_err_input.rda_3
+a3d5e4ded89d0b510b0585d7b55a423c *inst/testfiles/svm_cv_err_input_2.rda
+eaa1908e82518f3017b658b9604bd992 *inst/testfiles/svm_cv_err_input_3.rda
 ba4244c0c8aec2746e47286bcbe9fc30 *man/add.distance.Rd
 97bece6e85c80168392cd51d1b93aac6 *man/as.represampling.Rd
 94e8391f7c9cad3bd87444e01b15deac *man/as.resampling.Rd
