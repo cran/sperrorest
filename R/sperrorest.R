@@ -12,12 +12,12 @@
 #' @import magrittr
 #' @import pbmcapply
 #' @import parallel
-#' @import foreach
 #' @import future
 #' @import doFuture
 #' @import rpart
-#' @importFrom utils packageVersion
-#' @importFrom purrr walk map
+#' @importFrom foreach %dopar% foreach
+#' @importFrom utils packageVersion tail
+#' @importFrom purrr walk map flatten_dbl
 #' @importFrom stringr str_replace_all
 #'
 #' @param data a `data.frame` with predictor and response variables.
@@ -334,6 +334,11 @@ sperrorest <- function(formula, data, coords = c("x", "y"),
     } # nocov end
   }
 
+  # account for tibbles as input
+  if (any(class(data) == "tbl")) {
+    data <- as.data.frame(data)
+  }
+
   # Name of response variable:
   response <- as.character(attr(terms(formula), "variables"))[2]
 
@@ -410,7 +415,6 @@ sperrorest <- function(formula, data, coords = c("x", "y"),
     if (par_args$par_units > availableCores()) {
       par_args$par_units <- availableCores() # nolint # nocov
     }
-
 
     # parallelization here (par_mode = 1 & par_mode = 2) For each repetition:
     if (.Platform$OS.type == "windows") {
@@ -599,7 +603,6 @@ sperrorest <- function(formula, data, coords = c("x", "y"),
       }
     }
     if (par_args$par_mode == "sequential") {
-      registerDoFuture()
       plan(sequential)
       message(sprintf("Using 'foreach' sequential mode."))
     }
@@ -718,7 +721,8 @@ sperrorest <- function(formula, data, coords = c("x", "y"),
 
                         result <- list(error = runfolds_merged$current_res,
                                        pooled_error = current_pooled_error,
-                                       importance = impo_only)
+                                       importance = impo_only,
+                                       not_converged_folds = runfolds_merged$not_converged_folds)
                         return(list(result))
                       }
     if (par_args$par_mode == "foreach") {
@@ -734,10 +738,29 @@ sperrorest <- function(formula, data, coords = c("x", "y"),
     my_res <- split(my_res[[1]], 1:length(resamp))
   }
 
+  # check if any rep is NA in all folds and if, remove entry
+  # this happens e.g. in maxent
+
+  check_na <- map(my_res, function(x) all(is.na(x)))
+  check_na_flat <- unlist(check_na)
+
+  if (any(check_na_flat) == TRUE) {
+    which(map(my_res, function(x) all(is.na(x))) == "TRUE") %>%
+      as.numeric() -> check_na
+
+    my_res <- my_res[-check_na]
+  }
+
   # assign names to sublists - otherwise `transfer_parallel_output` doesn't work
   for (i in 1:length(my_res)) {
-    names(my_res[[i]]) <- c("error", "pooled_error", "importance")
+    names(my_res[[i]]) <- c("error", "pooled_error", "importance",
+                            "non-converged-folds")
   }
+
+  # flatten list & calc sum
+  map(my_res, function(x) flatten_dbl(x[["non-converged-folds"]])) %>%
+    unlist() %>%
+    sum() -> not_converged_folds
 
   # transfer results of lapply() to respective data objects
   my_res_mod <- transfer_parallel_output(my_res, res, impo, pooled_error)
@@ -770,6 +793,16 @@ sperrorest <- function(formula, data, coords = c("x", "y"),
               represampling = resamp, importance = impo, benchmark = my_bench,
               package_version = package_version)
   class(res) <- "sperrorest"
+
+  if (not_converged_folds > 0) {
+    if (length(smp_args$repetition) > 1) {
+      smp_args$repetition <- tail(smp_args$repetition, n = 1)
+    }
+    # print counter
+    cat(sprintf("%s folds of %s total folds (%s rep * %s folds) did not converge.",
+        not_converged_folds, smp_args$repetition * smp_args$nfold,
+        smp_args$repetition, smp_args$nfold))
+  }
 
   return(res)
 }

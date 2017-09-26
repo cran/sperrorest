@@ -29,17 +29,48 @@ runfolds <- function(j = NULL, current_sample = NULL, data = NULL, i = NULL,
   }
 
   # Create training sample:
-  nd <- data[current_sample[[j]]$train, ]
+  nd_train <- data[current_sample[[j]]$train, ]
   if (!is.null(train_fun))
-    nd <- train_fun(data = nd, param = train_param)
+    nd_train <- train_fun(data = nd_train, param = train_param)
+  # Create test sample:
+  nd_test <- data[current_sample[[j]]$test, ]
 
-  # Train model on training sample:
-  margs <- c(list(formula = formula, data = nd), model_args)
+  # Prepare training args for training on training data
+  margs <- c(list(formula = formula, data = nd_train), model_args)
 
-  fit <- do.call(model_fun, args = margs)
+  # initialize object
+  not_converged_folds <- 0
+
+  # tuning of ML models here
+
+  # we do not see the error message, so returning none
+  fit <- tryCatch(do.call(model_fun, args = margs), error = function(cond) {
+    return(NA)
+  })
+
+  # error handling for model fitting (e.g. maxent)
+  # we need the first condition to handle S4 objects. They do not work with
+  # is.na()
+  if (class(fit)[1] == "logical") {
+    message(sprintf(paste0("\n'sperrorest()': Non-convergence during model fit.",
+                           " Setting results of",
+                           " Repetition %s Fold %s to NA."),
+                    i, j
+    ))
+
+    not_converged_folds <- not_converged_folds + 1
+
+    return(list(pooled_obs_train = NA,
+                pooled_obs_test = NA,
+                pooled_pred_train = NA,
+                pooled_pred_test = NA,
+                current_res = NA,
+                current_impo = NA,
+                not_converged_folds = not_converged_folds))
+  }
 
   # Apply model to training sample:
-  pargs <- c(list(object = fit, newdata = nd), pred_args)
+  pargs <- c(list(object = fit, newdata = nd_train), pred_args)
   if (is.null(pred_fun)) {
     pred_train <- do.call(predict, args = pargs)
   } else {
@@ -49,39 +80,54 @@ runfolds <- function(j = NULL, current_sample = NULL, data = NULL, i = NULL,
 
   # Calculate error measures on training sample:
 
-  if (any(class(nd) == "tbl")) {
-    nd <- as.data.frame(nd) # nocov
+  if (any(class(nd_train) == "tbl")) {
+    nd_test <- as.data.frame(nd_train) # nocov
   }
-  current_res[[j]]$train <- err_fun(nd[, response], pred_train)
-  #res[[i]][[j]]$train = err_fun(nd[,response], pred_train)
+  current_res[[j]]$train <- tryCatch(err_fun(nd_train[, response], pred_train),
+                                     error = function(cond) {
+                                       return(NA)
+                                     })
+  if (class(current_res[[j]]$train) == "logical") {
+    message(sprintf(paste0("\n'sperrorest()': Non-convergence during",
+                           " performance calculation.",
+                           " Setting results of",
+                           " Repetition %s Fold %s to NA."),
+                    i, j
+    ))
 
+    not_converged_folds <- not_converged_folds + 1
 
+    return(list(pooled_obs_train = NA,
+                pooled_obs_test = NA,
+                pooled_pred_train = NA,
+                pooled_pred_test = NA,
+                current_res = NA,
+                current_impo = NA,
+                not_converged_folds = not_converged_folds))
+  }
 
-  pooled_obs_train <- c(pooled_obs_train, nd[, response])
+  pooled_obs_train <- c(pooled_obs_train, nd_train[, response])
   pooled_pred_train <- c(pooled_pred_train, pred_train)
 
-
-  # Create test sample:
-  nd <- data[current_sample[[j]]$test, ]
   if (!is.null(test_fun)) {
-    nd <- test_fun(data = nd, param = test_param) # nocov
+    nd_test <- test_fun(data = nd_test, param = test_param) # nocov
   }
   # Create a 'backup' copy for variable importance assessment:
   if (importance == TRUE) {
-    nd_bak <- nd
+    nd_bak <- nd_test
   }
 
   # account for possible missing factor levels in test data
   if (any(class(fit) == "lm" | class(fit) == "glmmPQL")) {
-    nd <- remove_missing_levels(fit, nd)
+    nd_test <- remove_missing_levels(fit, nd_test)
   }
 
   # remove NAs in data.frame if levels are missing
-  nd %>%
-    na.omit() -> nd
+  nd_test %>%
+    na.omit() -> nd_test
 
   # Apply model to test sample:
-  pargs <- c(list(object = fit, newdata = nd), pred_args)
+  pargs <- c(list(object = fit, newdata = nd_test), pred_args)
   if (is.null(pred_fun)) {
     pred_test <- do.call(predict, args = pargs)
   } else {
@@ -90,30 +136,54 @@ runfolds <- function(j = NULL, current_sample = NULL, data = NULL, i = NULL,
   rm(pargs)
 
   # Calculate error measures on test sample:
-  if (any(class(nd) == "tbl")) {
-    nd <- as.data.frame(nd) # nocov
+  if (any(class(nd_test) == "tbl")) {
+    nd_test <- as.data.frame(nd_test) # nocov
   }
-  current_res[[j]]$test <- err_fun(nd[, response], pred_test)
-  #res[[i]][[j]]$test  = err_fun(nd[,response], pred_test)
+  current_res[[j]]$test <- tryCatch(err_fun(nd_test[, response], pred_test),
+                                     error = function(cond) {
+                                       return(NA)
+                                     })
 
-  pooled_obs_test <- c(pooled_obs_test, nd[, response])
+  if (class(current_res[[j]]$test) == "logical") {
+    message(sprintf(paste0("\n'sperrorest()': Non-convergence during",
+                           " performance calculation.",
+                           " Setting results of",
+                           " Repetition %s Fold %s to NA."),
+                    i, j
+    ))
+
+    is_factor_prediction <<- is.factor(pred_test)
+
+    not_converged_folds <- not_converged_folds + 1
+
+    return(list(pooled_obs_train = NA,
+                pooled_obs_test = NA,
+                pooled_pred_train = NA,
+                pooled_pred_test = NA,
+                current_res = NA,
+                current_impo = NA,
+                not_converged_folds = not_converged_folds))
+  }
+
+  pooled_obs_test <- c(pooled_obs_test, nd_test[, response])
   pooled_pred_test <- c(pooled_pred_test, pred_test)
-  # assign to outer scope; otherwise object is NULL in runreps
+
   is_factor_prediction <<- is.factor(pred_test)
 
   ### Permutation-based variable importance assessment:
   if (importance == TRUE) {
-    # create undisturbed backup copy of test sample:
-    nd.bak <- nd
+
+    # Get undisturbed backup copy of test sample:
+    nd_test <- nd_bak
 
     # account for possible missing factor levels in test data
     if (any(class(fit) == "lm" | class(fit) == "glmmPQL")) {
-      nd <- remove_missing_levels(fit, nd)
+      nd_test <- remove_missing_levels(fit, nd_test)
     }
 
     # remove NAs in data.frame if levels are missing
-    nd %>%
-      na.omit() -> nd
+    nd_test %>%
+      na.omit() -> nd_test
 
     # does this ever happen??
     if (is.null(current_res[[j]]$test)) { # nocov start
@@ -138,17 +208,18 @@ runfolds <- function(j = NULL, current_sample = NULL, data = NULL, i = NULL,
           }
         }
         # Permutation indices:
-        permut <- sample(1:nrow(nd), replace = FALSE)
+        permut <- sample(1:nrow(nd_test), replace = FALSE)
 
         # For each variable:
         for (vnm in imp_variables) {
 
           # Get undisturbed backup copy of test sample:
-          nd <- nd.bak
+          nd_test <- nd_bak
+
           # Permute variable vnm:
-          nd[, vnm] <- nd[, vnm][permut]
+          nd_test[, vnm] <- nd_test[, vnm][permut]
           # Apply model to perturbed test sample:
-          pargs <- c(list(object = fit, newdata = nd), pred_args)
+          pargs <- c(list(object = fit, newdata = nd_test), pred_args)
           if (is.null(pred_fun)) {
             pred_test <- do.call(predict, args = pargs)
           } else {
@@ -157,7 +228,7 @@ runfolds <- function(j = NULL, current_sample = NULL, data = NULL, i = NULL,
           rm(pargs)
 
           # Calculate variable importance:
-          permut_err <- err_fun(nd[, response], pred_test)
+          permut_err <- err_fun(nd_test[, response], pred_test)
           imp_temp[[vnm]][[cnt]] <- as.list(unlist(current_res[[j]]$test) -
                                               unlist(permut_err))
 
@@ -167,7 +238,7 @@ runfolds <- function(j = NULL, current_sample = NULL, data = NULL, i = NULL,
       current_impo[[j]] <- as.data.frame(t(sapply(imp_temp, function(y)
         sapply(as.data.frame(t(sapply(y, as.data.frame))), function(x)
           mean(unlist(x))))))
-      rm(nd_bak, nd)  # better safe than sorry...
+      rm(nd_bak, nd_test)  # better safe than sorry...
     }
   }
 
@@ -179,7 +250,8 @@ runfolds <- function(j = NULL, current_sample = NULL, data = NULL, i = NULL,
               pooled_pred_train = pooled_pred_train,
               pooled_pred_test = pooled_pred_test,
               current_res = current_res,
-              current_impo = current_impo))
+              current_impo = current_impo,
+              not_converged_folds = not_converged_folds))
 }
 
 #' @title runreps
@@ -201,6 +273,7 @@ runreps <- function(current_sample = NULL, data = NULL, formula = NULL,
                     pooled_pred_train = NULL, response = NULL,
                     is_factor_prediction = NULL, pooled_pred_test = NULL,
                     coords = NULL, test_fun = NULL, par_mode = NULL, i = NULL) {
+
   # output data structures
   current_res <- NULL
   current_impo <- current_sample
@@ -242,6 +315,19 @@ runreps <- function(current_sample = NULL, data = NULL, formula = NULL,
   # http://stackoverflow.com/questions/43963683/r-flexible-passing-of-sublists-to-following-function # nolint
   runfolds_merged <- do.call(Map, c(f = list, runfolds_list))
 
+  # temporary workaround
+  # only applies if all fold results of a rep are NA
+  # then is_factor_prediction is not set within runfolds and we need to set it here
+  # unsure if is_factor_prediction is needed at all or if we can set it to
+  # TRUE permanently
+  # if (is.null(is_factor_prediction)) {
+  #   is_factor_prediction <- TRUE
+  # }
+  if (all(is.na(runfolds_merged$pooled_obs_train))) {
+    return(list(error = NA,
+                pooled_error = NA, importance = NA))
+  }
+
   if (importance == TRUE) {
     # subset fold result to importance results only
     impo_only <- runfolds_merged[6][[1]]
@@ -262,12 +348,14 @@ runreps <- function(current_sample = NULL, data = NULL, formula = NULL,
         pooled_only$pooled_obs_train], levels = lev)
     pooled_only$pooled_obs_test <- factor(lev[pooled_only$pooled_obs_test],
                                           levels = lev)
-    if (is_factor_prediction) {
+
+    if (is_factor_prediction == TRUE) {
         pooled_only$pooled_pred_train <- factor(lev[
           pooled_only$pooled_pred_train], levels = lev)
       pooled_only$pooled_pred_test <- factor(lev[
         pooled_only$pooled_pred_test], levels = lev)
     }
+
   }
   pooled_error_train <- NULL
     pooled_error_train <- err_fun(pooled_only$pooled_obs_train,
@@ -299,5 +387,6 @@ runreps <- function(current_sample = NULL, data = NULL, formula = NULL,
   }
 
   return(list(error = runfolds_merged$current_res,
-              pooled_error = current_pooled_error, importance = impo_only))
+              pooled_error = current_pooled_error, importance = impo_only,
+              not_converged_folds = runfolds_merged$not_converged_folds))
 }

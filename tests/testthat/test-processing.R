@@ -1,6 +1,6 @@
 context("processing.R")
 
-pacman::p_load(sperrorest, rpart, MASS)
+pacman::p_load(sperrorest, rpart, MASS, tibble, purrr)
 
 # runfolds Sun May 21 22:58:39 2017 ------------------------------
 
@@ -59,7 +59,7 @@ test_that("runfolds works on glm example", {
            pred_args = list(type = "response"), response = "slides", par_cl = 2,
            coords = c("x", "y"), progress = 1, pooled_obs_train = c(),
            pooled_obs_test = c(), err_fun = err_default) -> runfolds_single
-  expect_equal(length(runfolds_single), 6)
+  expect_equal(length(runfolds_single), 7)
 })
 
 test_that("runfolds works on LDA example", {
@@ -82,7 +82,6 @@ test_that("runfolds works on LDA example", {
       }
       x
     }
-
     pred <- predict(object, newdata = newdata)$class
     if (!is.null(fac)) pred <- majority_filter(pred, newdata[,fac])
     return(pred)
@@ -104,7 +103,7 @@ test_that("runfolds works on LDA example", {
                               coords = c("x", "y"), progress = 1,
                               pooled_obs_train = c(),
                               pooled_obs_test = c(), err_fun = err_default)
-  expect_equal(length(runfolds_single), 6)
+  expect_equal(length(runfolds_single), 7)
 })
 
 test_that("runfolds works on rpart example", {
@@ -136,7 +135,7 @@ test_that("runfolds works on rpart example", {
                               coords = c("x", "y"), progress = 1,
                               pooled_obs_train = c(),
                               pooled_obs_test = c(), err_fun = err_default)
-  expect_equal(length(runfolds_single), 6)
+  expect_equal(length(runfolds_single), 7)
 })
 
 # runreps Sun May 21 23:07:03 2017 ------------------------------
@@ -268,3 +267,4 @@ test_that("runfolds works on missing factor levels in
                       pooled_obs_test = c(), err_fun = err_default))
             expect_equal(length(runfolds_single), 6)
           })
+

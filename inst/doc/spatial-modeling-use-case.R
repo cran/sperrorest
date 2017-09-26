@@ -1,6 +1,6 @@
 ## ---- echo=FALSE, cache=FALSE, results='hide'----------------------------
 library(knitr)
-opts_chunk$set(cache = TRUE,
+opts_chunk$set(cache = FALSE,
                eval = FALSE, 
                fig.align = "center",
                collapse = TRUE,
