@@ -59,7 +59,7 @@ test_that("runfolds works on glm example", {
            pred_args = list(type = "response"), response = "slides", par_cl = 2,
            coords = c("x", "y"), progress = 1, pooled_obs_train = c(),
            pooled_obs_test = c(), err_fun = err_default) -> runfolds_single
-  expect_equal(length(runfolds_single), 7)
+  expect_equal(length(runfolds_single), 8)
 })
 
 test_that("runfolds works on LDA example", {
@@ -78,12 +78,12 @@ test_that("runfolds works on LDA example", {
 
     majority_filter <- function(x, fac) {
       for (lev in levels(fac)) {
-        x[ fac == lev ] <- majority(x[ fac == lev ])
+        x[fac == lev] <- majority(x[fac == lev])
       }
       x
     }
     pred <- predict(object, newdata = newdata)$class
-    if (!is.null(fac)) pred <- majority_filter(pred, newdata[,fac])
+    if (!is.null(fac)) pred <- majority_filter(pred, newdata[, fac])
     return(pred)
   }
 
@@ -103,7 +103,7 @@ test_that("runfolds works on LDA example", {
                               coords = c("x", "y"), progress = 1,
                               pooled_obs_train = c(),
                               pooled_obs_test = c(), err_fun = err_default)
-  expect_equal(length(runfolds_single), 7)
+  expect_equal(length(runfolds_single), 8)
 })
 
 test_that("runfolds works on rpart example", {
@@ -135,7 +135,7 @@ test_that("runfolds works on rpart example", {
                               coords = c("x", "y"), progress = 1,
                               pooled_obs_train = c(),
                               pooled_obs_test = c(), err_fun = err_default)
-  expect_equal(length(runfolds_single), 7)
+  expect_equal(length(runfolds_single), 8)
 })
 
 # runreps Sun May 21 23:07:03 2017 ------------------------------
@@ -166,7 +166,7 @@ test_that("runreps works on lda example", {
     }
 
     pred <- predict(object, newdata = newdata)$class
-    if (!is.null(fac)) pred <- majority_filter(pred, newdata[,fac])
+    if (!is.null(fac)) pred <- majority_filter(pred, newdata[, fac])
     return(pred)
   }
 
@@ -191,7 +191,7 @@ test_that("runreps works on glm example", {
   skip("internal use")
 
   data <- ecuador
-  imp.one.rep <- readRDS("inst/test-objects/imp.one.rep.rda")
+  imp_one_rep <- readRDS("inst/test-objects/imp_one_rep.rda")
   current_sample <- readRDS("inst/test-objects/resamp.rda")
   current_res <- readRDS("inst/test-objects/current_res.rda")
 
@@ -216,7 +216,7 @@ test_that("runreps works on rpart example", {
   skip("internal use")
 
   data <- ecuador
-  imp.one.rep <- readRDS("inst/test-objects/imp.one.rep.rda")
+  imp_one_rep <- readRDS("inst/test-objects/imp_one_rep.rda")
   current_sample <- readRDS("inst/test-objects/resamp.rda")
   current_res <- readRDS("inst/test-objects/current_res.rda")
 
@@ -267,4 +267,3 @@ test_that("runfolds works on missing factor levels in
                       pooled_obs_test = c(), err_fun = err_default))
             expect_equal(length(runfolds_single), 6)
           })
-
