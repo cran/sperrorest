@@ -9,10 +9,7 @@ test_that("runfolds works on missing factor levels in
 
             skip("internal use")
 
-            readRDS(paste0("/Users/pjs/Servers/GIServer/home/shares/data/LIFE",
-                           "/mod/survey_data/data-clean.rda")) %>%
-              as_tibble() %>%
-              as.data.frame() -> df
+            df <- readRDS("inst/testfiles/pathogen_data.rds")
             fo <- diplo01 ~ temp + p_sum + r_sum + elevation + slope + hail +
               age + ph + lithology + soil
 
@@ -118,7 +115,7 @@ test_that("runfolds works on rpart example", {
   ctrl <- rpart.control(cp = 0.005) # show the effects of overfitting
 
   # Non-spatial 5-repeated 10-fold cross-validation:
-  mypred_rpart <- function(object, newdata) predict(object, newdata)[,2]
+  mypred_rpart <- function(object, newdata) predict(object, newdata)[, 2]
 
   runfolds_single <- runfolds(j = 1, data = ecuador,
                               current_sample = current_sample,
@@ -241,10 +238,7 @@ test_that("runfolds works on missing factor levels in
 
             skip("internal use")
 
-            readRDS(paste0("/Users/pjs/Servers/GIServer/home/shares/data/LIFE",
-                           "/mod/survey_data/data-clean.rda")) %>%
-              as_tibble() %>%
-              as.data.frame() -> df
+            df <- readRDS("inst/testfiles/pathogen_data.rds")
             fo <- diplo01 ~ temp + p_sum + r_sum + elevation + slope + hail +
               age + ph + lithology + soil
 

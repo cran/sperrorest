@@ -12,7 +12,8 @@
 #' @import magrittr
 #' @import pbmcapply
 #' @import parallel
-#' @import future
+#' @importFrom future plan availableCores cluster sequential
+#' @importFrom future.apply future_lapply
 #' @import doFuture
 #' @import rpart
 #' @importFrom foreach %dopar% foreach
@@ -243,7 +244,7 @@
 #'                   model_args = list(family = "binomial"),
 #'                   pred_fun = predict,
 #'                   pred_args = list(type = "response"),
-#'                   smp_fun = partition_cv,
+#'                   smp_fun = partition_kmeans,
 #'                   smp_args = list(repetition = 1:2, nfold = 4),
 #'                   par_args = list(par_mode = "future"),
 #'                   importance = TRUE, imp_permutations = 10)
@@ -541,7 +542,7 @@ sperrorest <- function(formula, data, coords = c("x", "y"),
                     pooled_obs_test = pooled_obs_test, err_fun = err_fun)))
           # check if run was sufficient
           if (length(my_res) > 1 && my_res == "NULL") {
-            stop(paste0("No output was received from sperrorest.\n", # nocov start
+            stop(paste0("No output was received from sperrorest.\n", # nocov start # nolint
                         "If you are on macOS either run R in 'Vanilla' mode or",
                         " use another parallel mode.")) # nocov end
           }
@@ -561,7 +562,7 @@ sperrorest <- function(formula, data, coords = c("x", "y"),
 
       message(sprintf("Using parallel framework 'future' with 'future_lapply'",
                       "and '%s' option.", par_args$par_option))
-      my_res <- try(future_lapply(resamp, function(x)
+      my_res <- try(future.apply::future_lapply(resamp, function(x)
         runreps(current_sample = x, data = data, par_mode = par_args$par_mode,
                 formula = formula, do_gc = do_gc, imp_one_rep = imp_one_rep,
                 pred_fun = pred_fun,
