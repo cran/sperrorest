@@ -1,46 +1,58 @@
 <!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
 
 <head>
 
 <meta charset="utf-8" />
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="author" content="Patrick Schratz" />
 
 
 <title>Custom Predict and Model Functions</title>
 
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
 
 
 <style type="text/css">code{white-space: pre;}</style>
-<style type="text/css">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; position: absolute; }
-.sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
 @media screen {
 div.sourceCode { overflow: auto; }
 }
 @media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
-pre.numberSource a.sourceLine
-  { position: relative; }
-pre.numberSource a.sourceLine:empty
-  { position: absolute; }
-pre.numberSource a.sourceLine::before
-  { content: attr(data-line-number);
-    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all;
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
     -webkit-touch-callout: none; -webkit-user-select: none;
     -khtml-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -49,9 +61,9 @@ pre.numberSource a.sourceLine::before
   }
 pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
 div.sourceCode
-  {  }
+  {   }
 @media screen {
-a.sourceLine::before { text-decoration: underline; }
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 code span.al { color: #ff0000; font-weight: bold; } /* Alert */
 code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
@@ -82,7 +94,29 @@ code span.st { color: #4070a0; } /* String */
 code span.va { color: #19177c; } /* Variable */
 code span.vs { color: #4070a0; } /* VerbatimString */
 code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
 </style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
 
 
 
@@ -96,9 +130,6 @@ padding-right: 2em;
 font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 font-size: 14px;
 line-height: 1.35;
-}
-#header {
-text-align: center;
 }
 #TOC {
 clear: both;
@@ -267,8 +298,12 @@ code > span.st { color: #d14; }
 code > span.co { color: #888888; font-style: italic; } 
 code > span.ot { color: #007020; } 
 code > span.al { color: #ff0000; font-weight: bold; } 
-code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61717; background-color: #e3d2d2; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
 </style>
+
+
+
 
 </head>
 
@@ -278,79 +313,80 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 
 
 <h1 class="title toc-ignore">Custom Predict and Model Functions</h1>
-<h4 class="author"><em>Patrick Schratz</em></h4>
+<h4 class="author">Patrick Schratz</h4>
 
 
 <div id="TOC">
 <ul>
 <li><a href="#introduction">Introduction</a></li>
-<li><a href="#user-defined-model-functions">User-defined Model Functions</a><ul>
+<li><a href="#user-defined-model-functions">User-defined Model Functions</a>
+<ul>
 <li><a href="#problem">Problem</a></li>
 <li><a href="#solution">Solution</a></li>
 </ul></li>
-<li><a href="#user-defined-predict-functions">User-defined Predict Functions</a><ul>
+<li><a href="#user-defined-predict-functions">User-defined Predict Functions</a>
+<ul>
 <li><a href="#problem-1">Problem</a></li>
-<li><a href="#solution-1">Solution</a><ul>
-<li><a href="#randomforest">randomForest</a></li>
-<li><a href="#svm">svm</a></li>
-</ul></li>
+<li><a href="#solution-1">Solution</a></li>
 </ul></li>
 </ul>
 </div>
 
-<div id="introduction" class="section level1">
-<h1>Introduction</h1>
-<p><code>sperrorest</code> is a generic framework which aims to work with all R models/packages. In statistical learning, model setups, their formulas and error measures all depend on the family of the response variable. Various families exist (numeric, binary, multiclass) which again include sub-families (e.g. gaussian or poisson distribution of a numeric response).</p>
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>{sperrorest} is a generic framework which aims to work with all R models/packages. In statistical learning, model setups, their formulas and error measures all depend on the family of the response variable. Various families exist (numeric, binary, multiclass) which again include sub-families (e.g. gaussian or poisson distribution of a numeric response).</p>
 <p>This detail needs to be specified via the respective function, e.g. when using <code>glm()</code> with a binary response, one needs to set <code>family = &quot;binomial&quot;</code> to make sure that the model does something meaningful. Most of the time, the same applies to the generic <code>predict()</code> function. For the <code>glm()</code> case, one would need to set <code>type = &quot;response&quot;</code> if the predicted values should reflect probabilities instead of log-odds.</p>
 <p>These settings can be specified using <code>model_args</code> and <code>pred_args</code> in <code>sperrorest()</code>. So fine, “why do we need to write all these wrappers and custom model/predict functions then?!”</p>
 </div>
-<div id="user-defined-model-functions" class="section level1">
-<h1>User-defined Model Functions</h1>
-<div id="problem" class="section level2">
-<h2>Problem</h2>
-<p><code>model_fun</code> expects at least formula argument and a data.frame with the learning sample. All arguments, including the additional ones provided via <code>model_args</code>, are getting passed to <code>model_fun</code> via a <code>do.call()</code> call. However, if <code>model_fun</code> does not have an argument named <code>formula</code> but e.g. <code>fixed</code> (like it is the case for <code>glmmPQL()</code>) the <code>do.call()</code> call will fail because <code>sperrorest()</code> tries to pass an argument named <code>formula</code> but <code>glmmPQL</code> expects an argument named <code>fixed</code>.</p>
+<div id="user-defined-model-functions" class="section level2">
+<h2>User-defined Model Functions</h2>
+<div id="problem" class="section level3">
+<h3>Problem</h3>
+<p><code>model_fun</code> expects at least formula argument and a data.frame with the learning sample. All arguments, including the additional ones provided via <code>model_args</code>, are getting passed to <code>model_fun</code> via a <code>do.call()</code> call. However, if <code>model_fun</code> does not have an argument named <code>formula</code> but e.g. <code>fixed</code> (like it is the case for <code>glmmPQL()</code>) the <code>do.call()</code> call will fail because <code>sperrorest()</code> tries to pass an argument named <code>formula</code> but <code>glmmPQL</code> expects an argument named <code>fixed</code>.</p>
 </div>
-<div id="solution" class="section level2">
-<h2>Solution</h2>
-<p>In this case, we need to write a wrapper function for <code>glmmPQL</code> (named <code>glmmPQL_modelfun</code> here) which accounts for this naming problem. Here, we are passing the <code>formula</code> argument to our custom model function which then does the actual call to <code>glmmPQL()</code> using the supplied <code>formula</code> object as the <code>fixed</code> argument of <code>glmmPQL</code>.<br />
-By default, <code>glmmPQL()</code> has further arguments like <code>family</code> or <code>random</code>. If we want to use these, we pass them to <code>model_args</code> which then appends these to the arguments of <code>glmmPQL_modelfun</code>.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" data-line-number="1">glmmPQL_modelfun &lt;-<span class="st"> </span><span class="cf">function</span>(<span class="dt">formula =</span> <span class="ot">NULL</span>, <span class="dt">data =</span> <span class="ot">NULL</span>, <span class="dt">random =</span> <span class="ot">NULL</span>,</a>
-<a class="sourceLine" id="cb1-2" data-line-number="2">                             <span class="dt">family =</span> <span class="ot">NULL</span>) {</a>
-<a class="sourceLine" id="cb1-3" data-line-number="3">  fit &lt;-<span class="st"> </span><span class="kw">glmmPQL</span>(<span class="dt">fixed =</span> formula, <span class="dt">data =</span> data, <span class="dt">random =</span> random, <span class="dt">family =</span> family)</a>
-<a class="sourceLine" id="cb1-4" data-line-number="4">  <span class="kw">return</span>(fit)</a>
-<a class="sourceLine" id="cb1-5" data-line-number="5">}</a></code></pre></div>
+<div id="solution" class="section level3">
+<h3>Solution</h3>
+<p>In this case, we need to write a wrapper function for <code>glmmPQL</code> (named <code>glmmPQL_modelfun</code> here) which accounts for this naming problem. Here, we are passing the <code>formula</code> argument to our custom model function which then does the actual call to <code>glmmPQL()</code> using the supplied <code>formula</code> object as the <code>fixed</code> argument of <code>glmmPQL</code>. By default, <code>glmmPQL()</code> has further arguments like <code>family</code> or <code>random</code>. If we want to use these, we pass them to <code>model_args</code> which then appends these to the arguments of <code>glmmPQL_modelfun</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a>glmmPQL_modelfun &lt;-<span class="st"> </span><span class="cf">function</span>(<span class="dt">formula =</span> <span class="ot">NULL</span>, <span class="dt">data =</span> <span class="ot">NULL</span>, <span class="dt">random =</span> <span class="ot">NULL</span>,</span>
+<span id="cb1-2"><a href="#cb1-2"></a>                             <span class="dt">family =</span> <span class="ot">NULL</span>) {</span>
+<span id="cb1-3"><a href="#cb1-3"></a>  fit &lt;-<span class="st"> </span><span class="kw">glmmPQL</span>(<span class="dt">fixed =</span> formula, <span class="dt">data =</span> data, <span class="dt">random =</span> random, <span class="dt">family =</span> family)</span>
+<span id="cb1-4"><a href="#cb1-4"></a>  <span class="kw">return</span>(fit)</span>
+<span id="cb1-5"><a href="#cb1-5"></a>}</span></code></pre></div>
 </div>
 </div>
-<div id="user-defined-predict-functions" class="section level1">
-<h1>User-defined Predict Functions</h1>
-<div id="problem-1" class="section level2">
-<h2>Problem</h2>
+<div id="user-defined-predict-functions" class="section level2">
+<h2>User-defined Predict Functions</h2>
+<div id="problem-1" class="section level3">
+<h3>Problem</h3>
 <p>Unless specified explicitly, <code>sperrorest()</code> tries to use the generic <code>predict()</code> function. This function works differently depending on the class of the provided fitted model, i.e. many models slightly differ in the naming (and availability) of their arguments. For example, when fitting a Support Vector Machine (SVM) with a binary response variable, package <code>kernlab</code> expects an argument <code>type = &quot;probabilities&quot;</code> in its <code>predict()</code> call to receive predicted probabilities while in package <code>e1071</code> it is <code>&quot;probability  = TRUE&quot;</code>. Similar to <code>model_args</code>, this can be accounted for in the <code>pred_args</code> of <code>sperrorest()</code>.</p>
 <p>However, <code>sperrorest()</code> expects that the predicted values (of any response type) are stored directly in the returned object of the <code>predict()</code> function. While this is the case for many models, mainly with a numeric response, classification cases often behave differently. Here, the predicted values (classes in this case) are often stored in a sub-object named <code>class</code> or <code>predicted</code>.</p>
 </div>
-<div id="solution-1" class="section level2">
-<h2>Solution</h2>
+<div id="solution-1" class="section level3">
+<h3>Solution</h3>
 <p>Since there is no way to account for this in a general way (when every package may return the predicted values in a different format/column), we need to account for it by providing a custom predict function which returns only the predicted values so that <code>sperrorest()</code> can continue properly. This time we are showing two examples. The first takes again a binary classification using <code>randomForest</code>.</p>
-<div id="randomforest" class="section level3">
-<h3>randomForest</h3>
-<p>When calling predict on a fitted <code>randomForest</code> model with a binary response variable, the predicted values are actually stored in the resulting object returned by <code>predict()</code> (here called <code>pred</code>). So why do we have trouble here then?<br />
-Simply because <code>pred</code> is a matrix containing both probabilities for the <code>FALSE</code> (= 0) and <code>TRUE</code> (= 1) case. <code>sperrorest()</code> needs a vector containing only the predicted values of the <code>TRUE</code> case to pass these further onto <code>err_fun()</code> which then takes care of calculating all the error measures. So the important part is to subset the resulting matrix in the <code>pred</code> object to <code>TRUE</code> cases only and return the result.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" data-line-number="1">rf_predfun &lt;-<span class="st"> </span><span class="cf">function</span>(<span class="dt">object =</span> <span class="ot">NULL</span>, <span class="dt">newdata =</span> <span class="ot">NULL</span>, <span class="dt">type =</span> <span class="ot">NULL</span>) {</a>
-<a class="sourceLine" id="cb2-2" data-line-number="2">  pred &lt;-<span class="st"> </span><span class="kw">predict</span>(<span class="dt">object =</span> object, <span class="dt">newdata =</span> newdata, <span class="dt">type =</span> type)</a>
-<a class="sourceLine" id="cb2-3" data-line-number="3">  pred &lt;-<span class="st"> </span>pred[, <span class="dv">2</span>]</a>
-<a class="sourceLine" id="cb2-4" data-line-number="4">}</a></code></pre></div>
+<div id="randomforest" class="section level4">
+<h4>randomForest</h4>
+<p>When calling predict on a fitted <code>randomForest</code> model with a binary response variable, the predicted values are actually stored in the resulting object returned by <code>predict()</code> (here called <code>pred</code>). So why do we have trouble here then?</p>
+<p>Simply because <code>pred</code> is a matrix containing both probabilities for the <code>FALSE</code> (= 0) and <code>TRUE</code> (= 1) case. <code>sperrorest()</code> needs a vector containing only the predicted values of the <code>TRUE</code> case to pass these further onto <code>err_fun()</code> which then takes care of calculating all the error measures. So the important part is to subset the resulting matrix in the <code>pred</code> object to <code>TRUE</code> cases only and return the result.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a>rf_predfun &lt;-<span class="st"> </span><span class="cf">function</span>(<span class="dt">object =</span> <span class="ot">NULL</span>, <span class="dt">newdata =</span> <span class="ot">NULL</span>, <span class="dt">type =</span> <span class="ot">NULL</span>) {</span>
+<span id="cb2-2"><a href="#cb2-2"></a>  pred &lt;-<span class="st"> </span><span class="kw">predict</span>(<span class="dt">object =</span> object, <span class="dt">newdata =</span> newdata, <span class="dt">type =</span> type)</span>
+<span id="cb2-3"><a href="#cb2-3"></a>  pred &lt;-<span class="st"> </span>pred[, <span class="dv">2</span>]</span>
+<span id="cb2-4"><a href="#cb2-4"></a>}</span></code></pre></div>
 </div>
-<div id="svm" class="section level3">
-<h3>svm</h3>
+<div id="svm" class="section level4">
+<h4>svm</h4>
 <p>The same case (binary response) using <code>svm</code> from the <code>e1071</code> package. Here, the predicted probabilities are stored in a sub-object of <code>pred</code>. We can address it using the <code>attr()</code> function. Then again, we only need the <code>TRUE</code> cases for <code>sperrorest()</code>.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" data-line-number="1">svm_predfun &lt;-<span class="st"> </span><span class="cf">function</span>(<span class="dt">object =</span> <span class="ot">NULL</span>, <span class="dt">newdata =</span> <span class="ot">NULL</span>, <span class="dt">probability =</span> <span class="ot">NULL</span>) {</a>
-<a class="sourceLine" id="cb3-2" data-line-number="2">  pred &lt;-<span class="st"> </span><span class="kw">predict</span>(object, <span class="dt">newdata =</span> newdata, <span class="dt">probability =</span> <span class="ot">TRUE</span>)</a>
-<a class="sourceLine" id="cb3-3" data-line-number="3">  pred &lt;-<span class="st"> </span><span class="kw">attr</span>(pred, <span class="st">&quot;probabilities&quot;</span>)[, <span class="dv">2</span>]</a>
-<a class="sourceLine" id="cb3-4" data-line-number="4">}</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a>svm_predfun &lt;-<span class="st"> </span><span class="cf">function</span>(<span class="dt">object =</span> <span class="ot">NULL</span>, <span class="dt">newdata =</span> <span class="ot">NULL</span>, <span class="dt">probability =</span> <span class="ot">NULL</span>) {</span>
+<span id="cb3-2"><a href="#cb3-2"></a>  pred &lt;-<span class="st"> </span><span class="kw">predict</span>(object, <span class="dt">newdata =</span> newdata, <span class="dt">probability =</span> <span class="ot">TRUE</span>)</span>
+<span id="cb3-3"><a href="#cb3-3"></a>  pred &lt;-<span class="st"> </span><span class="kw">attr</span>(pred, <span class="st">&quot;probabilities&quot;</span>)[, <span class="dv">2</span>]</span>
+<span id="cb3-4"><a href="#cb3-4"></a>}</span></code></pre></div>
 </div>
 </div>
 </div>
 
+
+
+<!-- code folding -->
 
 
 <!-- dynamically load mathjax for compatibility with self-contained -->

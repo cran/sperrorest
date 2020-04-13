@@ -1,160 +1,156 @@
-## ---- echo=FALSE, cache=FALSE, results='hide'----------------------------
+## ---- echo=FALSE, cache=FALSE, results='hide'---------------------------------
 library(knitr)
-opts_chunk$set(cache = FALSE,
-               eval = FALSE, 
-               fig.align = "center",
-               collapse = TRUE,
-               fig.width = 4,
-               fig.height = 5)
-opts_knit$set(width = 125)
+opts_chunk$set(
+  cache = FALSE,
+  eval = TRUE,
+  fig.align = "center"
+)
 options(digits = 3)
 
-## ---- message=FALSE------------------------------------------------------
-#  library(pacman)
-#  p_load(sperrorest)
+## ---- message=FALSE-----------------------------------------------------------
+library("sperrorest")
 
-## ------------------------------------------------------------------------
-#  data("maipo", package = "sperrorest")
+## -----------------------------------------------------------------------------
+data("maipo", package = "sperrorest")
 
-## ------------------------------------------------------------------------
-#  predictors <- colnames(maipo)[5:ncol(maipo)]
-#  # Construct a formula:
-#  fo <- as.formula(paste("croptype ~", paste(predictors, collapse = "+")))
+## -----------------------------------------------------------------------------
+predictors <- colnames(maipo)[5:ncol(maipo)]
+# Construct a formula:
+fo <- as.formula(paste("croptype ~", paste(predictors, collapse = "+")))
 
-## ------------------------------------------------------------------------
-#  p_load(MASS)
-#  fit <- lda(fo, data = maipo)
+## -----------------------------------------------------------------------------
+library(MASS)
+fit <- lda(fo, data = maipo)
 
-## ------------------------------------------------------------------------
-#  pred <- predict(fit, newdata = maipo)$class
-#  mean(pred != maipo$croptype)
+## -----------------------------------------------------------------------------
+pred <- predict(fit, newdata = maipo)$class
+mean(pred != maipo$croptype)
 
-## ------------------------------------------------------------------------
-#  table(pred = pred, obs = maipo$croptype)
+## -----------------------------------------------------------------------------
+table(pred = pred, obs = maipo$croptype)
 
-## ---- message=FALSE------------------------------------------------------
-#  p_load(rpart)
+## ---- message=FALSE-----------------------------------------------------------
+library("rpart")
 
-## ------------------------------------------------------------------------
-#  fit <- rpart(fo, data = maipo)
-#  
-#  ## optional: view the classiciation tree
-#  # par(xpd = TRUE)
-#  # plot(fit)
-#  # text(fit, use.n = TRUE)
+## -----------------------------------------------------------------------------
+fit <- rpart(fo, data = maipo)
 
-## ------------------------------------------------------------------------
-#  pred <- predict(fit, newdata = maipo, type = "class")
-#  mean(pred != maipo$croptype)
+## optional: view the classiciation tree
+# par(xpd = TRUE)
+# plot(fit)
+# text(fit, use.n = TRUE)
 
-## ------------------------------------------------------------------------
-#  table(pred = pred, obs = maipo$croptype)
+## -----------------------------------------------------------------------------
+pred <- predict(fit, newdata = maipo, type = "class")
+mean(pred != maipo$croptype)
 
-## ---- message=FALSE------------------------------------------------------
-#  p_load(randomForest)
+## -----------------------------------------------------------------------------
+table(pred = pred, obs = maipo$croptype)
 
-## ------------------------------------------------------------------------
-#  fit <- randomForest(fo, data = maipo, coob = TRUE)
-#  fit
+## ---- message=FALSE-----------------------------------------------------------
+library("ranger")
 
-## ------------------------------------------------------------------------
-#  pred <- predict(fit, newdata = maipo, type = "class")
-#  mean(pred != maipo$croptype)
+## -----------------------------------------------------------------------------
+fit <- ranger(fo, data = maipo)
+fit
 
-## ------------------------------------------------------------------------
-#  table(pred = pred, obs = maipo$croptype)
+## -----------------------------------------------------------------------------
+pred <- predict(fit, data = maipo, type = "response")
+mean(pred$predictions != maipo$croptype)
 
-## ------------------------------------------------------------------------
-#  lda_predfun <- function(object, newdata, fac = NULL) {
-#  
-#    p_load(nnet)
-#    majority <- function(x) {
-#      levels(x)[which.is.max(table(x))]
-#    }
-#  
-#    majority_filter <- function(x, fac) {
-#      for (lev in levels(fac)) {
-#        x[fac == lev] <- majority(x[fac == lev])
-#      }
-#      x
-#    }
-#  
-#    pred <- predict(object, newdata = newdata)$class
-#    if (!is.null(fac)) pred <- majority_filter(pred, newdata[, fac])
-#    return(pred)
-#  }
+## -----------------------------------------------------------------------------
+table(pred = pred$predictions, obs = maipo$croptype)
 
-## ------------------------------------------------------------------------
-#  res_lda_nsp <- sperrorest(fo, data = maipo, coords = c("utmx","utmy"),
-#                            model_fun = lda,
-#                            pred_fun = lda_predfun,
-#                            pred_args = list(fac = "field"),
-#                            smp_fun = partition_cv,
-#                            smp_args = list(repetition = 1:100, nfold = 5),
-#                            error_rep = TRUE, error_fold = TRUE,
-#                            progress = FALSE)
+## -----------------------------------------------------------------------------
+lda_predfun <- function(object, newdata, fac = NULL) {
 
-## ------------------------------------------------------------------------
-#  summary(res_lda_nsp$error_rep)
+  library(nnet)
+  majority <- function(x) {
+    levels(x)[which.is.max(table(x))]
+  }
 
-## ---- echo = FALSE-------------------------------------------------------
-#  png(filename = "../inst/figure/resamp-plot.png", width = 7, height = 3, units = "in", res = 90)
-#  resamp <- partition_factor_cv(maipo, nfold = 5, repetition = 1:1, fac = "field")
-#  plot(resamp, maipo, coords = c("utmx","utmy"))
-#  dev.off()
+  majority_filter <- function(x, fac) {
+    for (lev in levels(fac)) {
+      x[fac == lev] <- majority(x[fac == lev])
+    }
+    x
+  }
 
-## ------------------------------------------------------------------------
-#  resamp <- partition_factor_cv(maipo, nfold = 5, repetition = 1:1, fac = "field")
-#  plot(resamp, maipo, coords = c("utmx","utmy"))
+  pred <- predict(object, newdata = newdata)$class
+  if (!is.null(fac)) pred <- majority_filter(pred, newdata[, fac])
+  return(pred)
+}
 
-## ----sperro-lda----------------------------------------------------------
-#  res_lda_sp <- sperrorest(fo, data = maipo, coords = c("utmx","utmy"),
-#                           model_fun = lda,
-#                           pred_fun = lda_predfun,
-#                           pred_args = list(fac = "field"),
-#                           smp_fun = partition_factor_cv,
-#                           smp_args = list(fac = "field", repetition = 1:50, nfold = 5),
-#                           error_rep = TRUE, error_fold = TRUE,
-#                           benchmark = TRUE, progress = FALSE)
-#  res_lda_sp$benchmark$runtime_performance
+## -----------------------------------------------------------------------------
+res_lda_nsp <- sperrorest(fo,
+  data = maipo, coords = c("utmx", "utmy"),
+  model_fun = lda,
+  pred_fun = lda_predfun,
+  pred_args = list(fac = "field"),
+  smp_fun = partition_cv,
+  smp_args = list(repetition = 1:10, nfold = 5),
+  progress = FALSE
+)
 
-## ------------------------------------------------------------------------
-#  summary(res_lda_sp$error_rep)
+## -----------------------------------------------------------------------------
+lapply(res_lda_nsp$error_rep, summary)
 
-## ----def-rf-predfun------------------------------------------------------
-#  rf_predfun <- function(object, newdata, fac = NULL) {
-#  
-#    p_load(nnet)
-#    majority <- function(x) {
-#      levels(x)[which.is.max(table(x))]
-#    }
-#  
-#    majority_filter <- function(x, fac) {
-#      for (lev in levels(fac)) {
-#        x[fac == lev] <- majority(x[fac == lev])
-#      }
-#      x
-#    }
-#  
-#    pred <- predict(object, newdata = newdata)
-#    if (!is.null(fac)) pred <- majority_filter(pred, newdata[,fac])
-#    return(pred)
-#  }
+## ----fig.width=7, fig.asp=0.5-------------------------------------------------
+resamp <- partition_factor_cv(maipo, nfold = 5, repetition = 1:1, fac = "field")
+plot(resamp, maipo, coords = c("utmx", "utmy"))
 
-## ----sperro-rf-----------------------------------------------------------
-#  res_rf_sp <- sperrorest(fo, data = maipo, coords = c("utmx","utmy"),
-#                          model_fun = randomForest,
-#                          pred_fun = rf_predfun,
-#                          pred_args = list(fac = "field"),
-#                          smp_fun = partition_factor_cv,
-#                          smp_args = list(fac = "field",
-#                                          repetition = 1:50, nfold = 5),
-#                          error_rep = TRUE, error_fold = TRUE,
-#                          benchmark = TRUE, progress = 2)
+## ----sperro-lda---------------------------------------------------------------
+res_lda_sp <- sperrorest(fo,
+  data = maipo, coords = c("utmx", "utmy"),
+  model_fun = lda,
+  pred_fun = lda_predfun,
+  pred_args = list(fac = "field"),
+  smp_fun = partition_factor_cv,
+  smp_args = list(fac = "field", repetition = 1:10, nfold = 5),
+  benchmark = TRUE, progress = FALSE
+)
+res_lda_sp$benchmark$runtime_performance
 
-## ------------------------------------------------------------------------
-#  summary(res_rf_sp$error_rep$test_error)
+## -----------------------------------------------------------------------------
+lapply(res_lda_sp$error_rep, summary)
 
-## ------------------------------------------------------------------------
-#  summary(res_rf_sp$error_rep$test_accuracy)
+## ----def-rf-predfun-----------------------------------------------------------
+rf_predfun <- function(object, newdata, fac = NULL) {
+
+  library(nnet)
+  majority <- function(x) {
+    levels(x)[which.is.max(table(x))]
+  }
+
+  majority_filter <- function(x, fac) {
+    for (lev in levels(fac)) {
+      x[fac == lev] <- majority(x[fac == lev])
+    }
+    x
+  }
+
+  pred <- predict(object, data = newdata)
+  if (!is.null(fac)) pred <- majority_filter(pred$predictions, newdata[, fac])
+  return(pred)
+}
+
+## ----sperro-rf----------------------------------------------------------------
+res_rf_sp <- sperrorest(fo,
+  data = maipo, coords = c("utmx", "utmy"),
+  model_fun = ranger,
+  pred_fun = rf_predfun,
+  pred_args = list(fac = "field"),
+  smp_fun = partition_factor_cv,
+  smp_args = list(
+    fac = "field",
+    repetition = 1:10, nfold = 5
+  ),
+  benchmark = TRUE, progress = 2
+)
+
+## -----------------------------------------------------------------------------
+lapply(res_rf_sp$error_rep, summary)
+
+## -----------------------------------------------------------------------------
+summary(res_rf_sp$error_rep$test_accuracy)
 
