@@ -1,11 +1,15 @@
+<!-- NEWS.md is maintained by https://cynkra.github.io/fledge, do not edit -->
+
+# sperrorest 3.0.2
+
+- `partition_disc()`: set default value of arg `buffer` to 0 instead of NULL, fixes #61
+- `partition_loo()`: Sequence along observations instead of columns.
+  Before, the train set was only composed of `ncol` observation. (#60)
+
+
 # sperrorest 3.0.1
 
 - Resolve minor NAMESPACE issues for {future} on CRAN
-
-
-# sperrorest 3.0.0.9000
-
-- Internal changes only.
 
 
 # sperrorest 3.0.0
@@ -121,7 +125,7 @@ Changes to functions:
   * package is now ByteCompiled
   
   * Github repo of {sperrorest} now at 
-  [https://github.com/pat-s/sperrorest/](https://github.com/pat-s/sperrorest/)
+  [https://github.com/giscience-fsu/sperrorest/](https://github.com/giscience-fsu/sperrorest/)
   
 # sperrorest 0.2-1 (19 June 2012)
 

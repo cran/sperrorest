@@ -346,6 +346,7 @@ partition_factor_cv <- function(data, coords = c("x", "y"), fac, nfold = 10,
 #'
 #' @examples
 #' data(ecuador)
+#' set.seed(42)
 #' parti <- partition_tiles(ecuador, nsplit = c(4, 3), reassign = FALSE)
 #' # plot(parti,ecuador)
 #' # tile A4 has only 55 samples
@@ -420,7 +421,7 @@ partition_tiles <- function(data, coords = c("x", "y"), dsplit = NULL,
   if (offset == "none") {
     x_shift <- y_shift <- rep(0, length(repetition))
   } else if (offset == "random") {
-    x_shift <- runif(0, 1, n = length(repetition)) # nocov start
+    x_shift <- runif(0, 1, n = length(repetition))
     y_shift <- runif(0, 1, n = length(repetition))
   } else if (offset == "user") {
     if (is.vector(user_offset) && length(user_offset) == 2) {
@@ -438,17 +439,17 @@ partition_tiles <- function(data, coords = c("x", "y"), dsplit = NULL,
     stopifnot(length(user_offset[[1]]) == length(repetition))
     stopifnot(length(user_offset[[2]]) == length(repetition))
     # Valid range, [0,1]?
-    stopifnot(min(user_offset[[1]] >= 0 & max(user_offset[[1]]) <= 1))
-    stopifnot(min(user_offset[[2]] >= 0 & max(user_offset[[2]]) <= 1))
+    stopifnot(min(user_offset[[1]]) >= 0 & max(user_offset[[1]]) <= 1)
+    stopifnot(min(user_offset[[2]]) >= 0 & max(user_offset[[2]]) <= 1)
     x_shift <- user_offset[[1]]
-    y_shift <- user_offset[[2]] # nocov end
+    y_shift <- user_offset[[2]]
   }
   names(x_shift) <- as.character(repetition)
   names(y_shift) <- as.character(repetition)
 
   if (!is.null(nsplit)) {
     if (length(nsplit) == 1) {
-      nsplit <- c(nsplit, nsplit) # nocov
+      nsplit <- c(nsplit, nsplit)
     }
   }
   if (!is.null(dsplit)) {
@@ -462,17 +463,17 @@ partition_tiles <- function(data, coords = c("x", "y"), dsplit = NULL,
   for (cnt in repetition) {
 
     if (!is.null(seed1)) {
-      set.seed(seed1 + cnt) # nocov
+      set.seed(seed1 + cnt)
     }
 
     # Prepare the arguments and data:
 
     if (rotation != "none") {
-      r <- phi[as.character(cnt)] * 180 / pi # nocov start
+      r <- phi[as.character(cnt)] * 180 / pi
       r <- matrix(c(cos(r), -sin(r), sin(r), cos(r)), ncol = 2)
       xy <- r %*% t(data[, coords])
       x <- xy[1, ]
-      y <- xy[2, ] # nocov end
+      y <- xy[2, ]
     } else {
       x <- data[, coords[1]]
       y <- data[, coords[2]]
@@ -486,19 +487,19 @@ partition_tiles <- function(data, coords = c("x", "y"), dsplit = NULL,
       my_nsplit <- nsplit
     } else {
       # if !is.null(dsplit)
-      x_delta <- dsplit[1] # nocov
-      y_delta <- dsplit[2] # nocov
+      x_delta <- dsplit[1]
+      y_delta <- dsplit[2]
     }
     # Apply offsets:
     if (offset != "none") {
       # Widen the range and increase nsplit to allow for 'lurking' tiles:
-      x_range[2] <- x_range[2] + x_delta # nocov start
+      x_range[2] <- x_range[2] + x_delta
       y_range[2] <- y_range[2] + y_delta
       x_range <- x_range - x_delta * (x_shift[as.character(cnt)])
       y_range <- y_range - y_delta * (y_shift[as.character(cnt)])
       if (is.null(dsplit)) {
         my_nsplit <- my_nsplit + 1
-      } # nocov end
+      }
     }
 
     # Calculate x and y splits:
@@ -506,10 +507,9 @@ partition_tiles <- function(data, coords = c("x", "y"), dsplit = NULL,
       x_split <- seq(x_range[1], x_range[2], length = my_nsplit[1] + 1)
       y_split <- seq(y_range[1], y_range[2], length = my_nsplit[2] + 1)
     } else {
-      # nocov start
       x_split <- seq(x_range[1], x_range[2] + x_delta, by = x_delta)
       y_split <- seq(y_range[1], y_range[2] + y_delta, by = y_delta)
-      my_nsplit <- c(length(x_split) - 1, length(y_split) - 1) # nocov end
+      my_nsplit <- c(length(x_split) - 1, length(y_split) - 1)
     }
 
     # Group data into tiles, i.e. assign tile labels to samples:
@@ -540,7 +540,6 @@ partition_tiles <- function(data, coords = c("x", "y"), dsplit = NULL,
     s_tiles <- get_small_tiles(tile, min_n = min_n, min_frac = min_frac) # nolint
     if (length(s_tiles) > 0) {
       # any small tiles?
-      # nocov start
       if (reassign) {
         # Merge small tiles with neighbors:
         ignore <- c()
@@ -570,7 +569,7 @@ partition_tiles <- function(data, coords = c("x", "y"), dsplit = NULL,
         # Just eliminate small tiles:
         tile[tile %in% s_tiles] <- NA
         tile <- factor(as.character(tile))
-      } # nocov end
+      }
     }
 
     if (!return_factor) {
@@ -683,7 +682,7 @@ partition_kmeans <- function(data, coords = c("x", "y"), nfold = 10,
 
 #' @title Leave-one-disc-out cross-validation and leave-one-out cross-validation
 #'
-#' @description partition_disc` partitions the sample into training and tests
+#' @description `partition_disc` partitions the sample into training and tests
 #'   set by selecting circular test areas (possibly surrounded by an exclusion
 #'   buffer) and using the remaining samples as training samples
 #'   (leave-one-disc-out cross-validation). `partition_loo` creates training and
@@ -746,7 +745,7 @@ partition_kmeans <- function(data, coords = c("x", "y"), nfold = 10,
 partition_disc <- function(data,
                            coords = c("x", "y"),
                            radius,
-                           buffer = NULL,
+                           buffer = 0,
                            ndisc = nrow(data),
                            seed1 = NULL,
                            return_train = TRUE,
@@ -773,7 +772,7 @@ partition_disc <- function(data,
       set.seed(seed1 + cnt) # nocov
     }
     if (ndisc == nrow(data)) {
-      index <- c(seq_along(data)) # nocov
+      index <- seq_len(nrow(data)) # nocov
     } else {
       index <- sample.int(nrow(data),
         size = ndisc, replace = replace,
@@ -799,7 +798,7 @@ partition_disc <- function(data,
         test_sel <- i
         if (return_train) {
           if (is.null(buffer)) {
-            train_sel <- c(seq_along(data))[-i] # nocov
+            train_sel <- seq_len(nrow(data))[-i] # nocov
           } else {
             train_sel <- which(di > posbuf)
           }
@@ -1271,6 +1270,7 @@ represampling_disc_bootstrap <- function(data,
 #' @export
 plot.represampling <- function(x, data, coords = c("x", "y"), pch = "+",
                                wiggle_sd = 0, ...) {
+
   # nocov start
   if (missing(data)) {
     stop("'data' argument missing")
@@ -1293,6 +1293,7 @@ plot.represampling <- function(x, data, coords = c("x", "y"), pch = "+",
     mfrow = c(nr, nc), mar = c(2, 2, 3, 0.5), mgp = c(2, 0.7, 0), tcl = -0.3,
     cex = 0.5
   )
+
   for (i in seq_along(resample)) {
     for (j in seq_along(resample[[i]])) {
       seltrain <- resample[[i]][[j]]$train
