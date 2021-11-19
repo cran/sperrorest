@@ -1,5 +1,4 @@
-#' @title Perform spatial error estimation and variable importance assessment in
-#'   parallel
+#' @title Perform spatial error estimation and variable importance assessment
 #'
 #' @description {sperrorest} is a flexible interface for multiple types of
 #' parallelized spatial and non-spatial cross-validation and bootstrap error
@@ -13,13 +12,24 @@
 #'
 #' Running in parallel is supported via package \CRANpkg{future}.
 #' Have a look at `vignette("future-1-overview", package = "future")`.
-#' In short: Choose a backend and specify the amount of workers, then call
+#' In short: Choose a backend and specify the number of workers, then call
 #' `sperrorest()` as usual. Example:
 #'
 #' ```r
 #' future::plan(future.callr::callr, workers = 2)
 #' sperrorest()
 #' ```
+#' Parallelization at the repetition is recommended when using
+#' repeated cross-validation. If the 'granularity' of parallelized
+#' function calls is too fine, the overall runtime will be very
+#' poor since the overhead for passing arguments and handling
+#' environments becomes too large. Use fold-level parallelization
+#' only when the processing time of individual folds is very
+#' large and the number of repetitions is small or equals 1.
+#'
+#' Note that nested calls to `future` are not possible.
+#' Therefore a sequential `sperrorest` call should be used for
+#' hyperparameter tuning in a nested cross-validation.
 #'
 #' @importFrom future.apply future_lapply
 #' @importFrom utils packageVersion tail
@@ -34,6 +44,7 @@
 #'   e.g. `y~x1+x2+x3` but not `y~x1*x2+log(x3)`. Formulas involving interaction
 #'   and nonlinear terms may possibly work for error estimation but not for
 #'   variable importance assessment, but should be used with caution.
+#'   The formula `y~...` is not supported, but `y~1` (i.e. no predictors) is.
 #' @param coords vector of length 2 defining the variables in `data` that
 #'   contain the x and y coordinates of sample locations.
 #' @param model_fun Function that fits a predictive model, such as `glm` or
@@ -65,6 +76,14 @@
 #'   which permutation-based variable importance assessment is performed. If
 #'   `importance = TRUE` and `imp_variables` == `NULL`, all variables in
 #'   `formula` will be used.
+#' @param imp_sample_from (default: `"test"`): specified if the permuted feature
+#'   values should be taken from the test set, the training set (a rather unlikely
+#'   choice), or the entire sample (`"all"`). The latter is useful in
+#'   leave-one-out resampling situations where the test set is simply too small
+#'   to perform any kind of resampling. In any case importances are
+#'   always estimates on the test set. (Note that resampling with replacement is
+#'   used if the test set is larger than the set from which the permuted values
+#'   are to be taken.)
 #' @param imp_permutations (optional; used if `importance = TRUE`). Number of
 #'   permutations used for variable importance assessment.
 #' @param importance logical (default: `FALSE`): perform permutation-based
@@ -79,8 +98,18 @@
 #'   information (if possible). Default shows repetition, fold and (if enabled)
 #'   variable importance progress. Set to `"rep"` for repetition information
 #'   only or `FALSE` for no progress information.
+#' @param mode_rep,mode_fold character (default: `"future"` and `"sequential"`,
+#'   respectively): specifies whether to parallelize the execution at the repetition
+#'   level, at the fold level, or not at all.
+#'   Parallel execution uses `future.apply::future_lapply()` (see details below).
+#'   It is only possible to parallelize at the repetition level or at
+#'   the fold level.
+#'   The `"loop"` option uses a `for` loop instead of an `lappy`
+#'   function; this option is for debugging purposes.
 #' @param benchmark (optional) logical (default: `FALSE`): if `TRUE`, perform
 #'   benchmarking and return `sperrorestbenchmark` object.
+#' @param verbose Controls the amount of information printed while processing.
+#'   Defaults to 0 (no output).
 #'
 #' @return A list (object of class {sperrorest}) with (up to) six components:
 #' - error_rep: `sperrorestreperror` containing
@@ -101,14 +130,16 @@
 #' 'sperrorest'.
 #' 2012 IEEE International Geoscience and Remote Sensing Symposium (IGARSS),
 #' 23-27 July 2012, p. 5372-5375.
+#' <https://ieeexplore.ieee.org/document/6352393>
 #'
 #' Brenning, A. 2005. Spatial prediction models for landslide hazards: review,
 #' comparison and evaluation. Natural Hazards and Earth System Sciences,
-#' 5(6): 853-862.
+#' 5(6), 853-862. \doi{10.5194/nhess-5-853-2005}
 #'
-#' Brenning, A., S. Long & P. Fieguth. Forthcoming. Detecting rock glacier flow
-#' structures using Gabor filters and IKONOS imagery.
-#' Submitted to Remote Sensing of Environment.
+#' Brenning, A., S. Long & P. Fieguth. 2012. Detecting rock glacier
+#' flow structures using Gabor filters and IKONOS imagery.
+#' Remote Sensing of Environment, 125, 227-237.
+#' \doi{10.1016/j.rse.2012.07.005}
 #'
 #' Russ, G. & A. Brenning. 2010a. Data mining in precision agriculture:
 #' Management of spatial information. In 13th International Conference on
@@ -203,11 +234,21 @@ sperrorest <- function(formula,
                        err_fun = err_default,
                        imp_variables = NULL,
                        imp_permutations = 1000,
+                       imp_sample_from = c("test", "train", "all"),
                        importance = !is.null(imp_variables),
                        distance = FALSE,
                        do_gc = 1,
                        progress = "all",
-                       benchmark = FALSE) {
+                       benchmark = FALSE,
+                       mode_rep = c("future", "sequential", "loop"),
+                       mode_fold = c("sequential", "future", "loop"),
+                       verbose = 0) {
+
+  if (verbose >= 1) {
+    cat("sperrorest version", as.character(packageVersion("sperrorest")), "\n")
+    cat("(c) A. Brenning, P. Schratz, and contributors\n")
+    cat("Cite as Brenning (2012), doi: 10.1109/igarss.2012.6352393\n")
+  }
 
   # set global variables for R CMD Check
 
@@ -224,7 +265,7 @@ sperrorest <- function(formula,
   if (missing(model_fun)) {
     stop("'model_fun' is a required argument")
   }
-  if (as.character(attr(terms(formula), "variables"))[3] == "...") {
+  if (any(all.vars(formula) == "...")) {
     stop("formula of the form lhs ~ ... not accepted by 'sperrorest'\n
          specify all predictor variables explicitly")
   }
@@ -244,9 +285,19 @@ sperrorest <- function(formula,
     if (!is.null(imp_variables)) {
       stopifnot(is.character(imp_variables)) # nocov
     }
+
+    imp_sample_from <- match.arg(imp_sample_from)
   }
   stopifnot(is.character(coords))
   stopifnot(length(coords) == 2)
+
+  mode_rep <- match.arg(mode_rep)
+  mode_fold <- match.arg(mode_fold)
+  if ((mode_rep == "future") & (mode_fold == "future")) {
+    warning("Only parallelization at either the repetition level or the fold level\nis supported. Using mode_fold = 'sequential'.")
+    mode_fold <- "sequential"
+  }
+  mode_dist <- mode_rep
 
   # Check if user is trying to bypass the normal mechanism for
   # generating training and test data sets and for passing formulas:
@@ -271,7 +322,10 @@ sperrorest <- function(formula,
   }
 
   # Name of response variable:
-  response <- as.character(attr(terms(formula), "variables"))[2]
+  response <- all.vars(formula)[1]
+
+  if (verbose >= 1)
+    cat(date(), "Creating resampling object...\n")
 
   smp_args$data <- data
   smp_args$coords <- coords
@@ -279,8 +333,17 @@ sperrorest <- function(formula,
   resamp <- do.call(smp_fun, args = smp_args)
 
   if (distance) {
-    # Parallelize this function???
-    resamp <- add.distance(resamp, data, coords = coords, fun = mean)
+    if (verbose >= 1)
+      cat(date(), "Adding distance information to resampling object...\n")
+    resamp <- add.distance(object = resamp, data = data,
+                           coords = coords, fun = mean,
+                           mode = mode_dist[1])
+    if (verbose >= 3) {
+      cat("\n-----------------------------\nResampling object:",
+          "\n-----------------------------\n")
+      print(resamp)
+      cat("\n-----------------------------\n")
+    }
   }
 
   res <- lapply(resamp, unclass)
@@ -288,18 +351,22 @@ sperrorest <- function(formula,
 
   pooled_error <- NULL
 
-  # required to be able to assign levels to predictions if appropriate:
-  is_factor_prediction <- NULL
-
   ### Permutation-based variable importance assessment (optional):
   impo <- NULL
   if (importance) {
     # Importance of which variables:
     if (is.null(imp_variables)) {
-      imp_variables <- strsplit(as.character(formula)[3], " + ",
-        fixed = TRUE
-      )[[1]]
+      imp_variables <- all.vars(formula)[-1]
+      # imp_variables <- strsplit(as.character(formula)[3], " + ",
+      #                           fixed = TRUE)[[1]]
     }
+    if (length(imp_variables) == 0) {
+      importance <- FALSE
+      warning("importance is TRUE, but there are no predictors,\n",
+              "or no predictors have been selected; using importance = FALSE.")
+    }
+  }
+  if (importance) {
     # Dummy data structure that will later be populated with the results:
     impo <- resamp
     # Create a template that will contain results of variable importance
@@ -310,7 +377,7 @@ sperrorest <- function(formula,
 
     tmp <- as.list(rep(NA, imp_permutations))
 
-    names(tmp) <- as.character(1:imp_permutations)
+    names(tmp) <- as.character(seq_len(imp_permutations))
     for (vnm in imp_variables) {
       imp_one_rep[[vnm]] <- tmp
     }
@@ -321,65 +388,167 @@ sperrorest <- function(formula,
 
   # mode = "future" Sun May 21 12:04:55 2017 -----------------------------
 
-  my_res <- future.apply::future_lapply(resamp, function(x) {
-    runreps(
-      current_sample = x,
-      data = data,
-      formula = formula,
-      response = response,
-      do_gc = do_gc,
-      imp_one_rep = imp_one_rep,
-      pred_fun = pred_fun,
-      model_args = model_args,
-      model_fun = model_fun,
-      imp_permutations = imp_permutations,
-      imp_variables = imp_variables,
-      is_factor_prediction = is_factor_prediction,
-      importance = importance,
-      current_res = current_res,
-      pred_args = pred_args,
-      coords = coords,
-      progress = progress,
-      pooled_obs_train = pooled_obs_train,
-      train_fun = train_fun,
-      train_param = train_param,
-      test_fun = test_fun,
-      test_param = test_param,
-      pooled_obs_test = pooled_obs_test,
-      err_fun = err_fun
+  if (verbose >= 1)
+    cat(date(), "Running the model assessment...\n")
+
+  if (mode_rep == "sequential") {
+    my_res <- lapply(seq_along(resamp), function(x) {
+      runreps(
+        current_sample = resamp[[x]],
+        data = data,
+        formula = formula,
+        response = response,
+        do_gc = do_gc,
+        imp_one_rep = imp_one_rep,
+        pred_fun = pred_fun,
+        model_args = model_args,
+        model_fun = model_fun,
+        imp_permutations = imp_permutations,
+        imp_variables = imp_variables,
+        imp_sample_from = imp_sample_from,
+        importance = importance,
+        current_res = current_res,
+        pred_args = pred_args,
+        coords = coords,
+        progress = progress,
+        mode_fold = mode_fold,
+        pooled_obs_train = pooled_obs_train,
+        train_fun = train_fun,
+        train_param = train_param,
+        test_fun = test_fun,
+        test_param = test_param,
+        pooled_obs_test = pooled_obs_test,
+        err_fun = err_fun,
+        i = x
+      )
+    }
     )
-  },
-  future.seed = TRUE
-  )
+
+  } else if (mode_rep == "future") {
+
+    my_res <- future.apply::future_lapply(seq_along(resamp), function(x) {
+      runreps(
+        current_sample = resamp[[x]],
+        data = data,
+        formula = formula,
+        response = response,
+        do_gc = do_gc,
+        imp_one_rep = imp_one_rep,
+        pred_fun = pred_fun,
+        model_args = model_args,
+        model_fun = model_fun,
+        imp_permutations = imp_permutations,
+        imp_variables = imp_variables,
+        imp_sample_from = imp_sample_from,
+        importance = importance,
+        current_res = current_res,
+        pred_args = pred_args,
+        coords = coords,
+        progress = progress,
+        mode_fold = mode_fold,
+        pooled_obs_train = pooled_obs_train,
+        train_fun = train_fun,
+        train_param = train_param,
+        test_fun = test_fun,
+        test_param = test_param,
+        pooled_obs_test = pooled_obs_test,
+        err_fun = err_fun,
+        i = x
+      )
+    },
+    future.seed = TRUE
+    )
+
+  } else if (mode_rep == "loop") {
+
+    # for loop as a safety net for debugging purposes:
+
+    my_res <- list()
+    for (i_rep in seq_along(resamp)) {
+      my_res[[i_rep]] <-
+        runreps(
+          current_sample = resamp[[i_rep]],
+          data = data,
+          formula = formula,
+          response = response,
+          do_gc = do_gc,
+          imp_one_rep = imp_one_rep,
+          pred_fun = pred_fun,
+          model_args = model_args,
+          model_fun = model_fun,
+          imp_permutations = imp_permutations,
+          imp_variables = imp_variables,
+          imp_sample_from = imp_sample_from,
+          importance = importance,
+          current_res = current_res,
+          pred_args = pred_args,
+          coords = coords,
+          progress = progress,
+          mode_fold = mode_fold,
+          pooled_obs_train = pooled_obs_train,
+          train_fun = train_fun,
+          train_param = train_param,
+          test_fun = test_fun,
+          test_param = test_param,
+          pooled_obs_test = pooled_obs_test,
+          err_fun = err_fun,
+          i = i_rep
+        )
+      if (verbose >= 3) {
+        cat("\n-----------------------------\nResults:",
+            "\n-----------------------------\n")
+        print(my_res[[i_rep]])
+        cat("-----------------------------\n\n")
+      }
+    }
+  } else stop("invalid mode_rep")
 
   ### format parallel outputs ----
+
+  if (verbose >= 1)
+    cat(date(), "Postprocessing...\n")
 
   # overwrite resamp object with possibly altered resample object from
   # runfolds
   # this applies if a custom test_fun or train_fun with a sub-resampling
   # method is used
-  for (i in seq_along(resamp)) {
-    for (j in seq_along(resamp[[1]])) {
-      resamp[[i]][[j]] <- my_res[[i]][["resampling"]][[j]][[j]]
+  if (!is.null(test_fun) | !is.null(train_fun)) {
+    if (verbose >= 2)
+      cat(date(), " - Copy possibly altered resampling object...")
+    for (i in seq_along(resamp)) {
+      for (j in seq_along(resamp[[i]])) {
+        # ...was [[1]], which assumes that all repetitions have equal
+        # number of folds.
+        resamp[[i]][[j]] <- my_res[[i]][["resampling"]][[j]][[j]]
+      }
     }
   }
+
+  ## 2021-06-21:
+  ## removed NA check; NAs should be handled by
+  ## summary methods...
 
   # check if any rep is NA in all folds and if, remove entry
   # this happens e.g. in maxent #nolint
 
-  check_na <- lapply(my_res, function(x) all(is.na(x))) # nolint
-  check_na_flat <- unlist(check_na)
-
-  if (any(check_na_flat) == TRUE) {
-    check_na <- as.numeric(which(lapply(my_res, function(x) {
-      all(is.na(x))
-    }) == "TRUE"))
-
-    my_res <- my_res[-check_na]
-
-  }
+  # if (verbose >= 2)
+  #   cat(date(), " - Check NAs...\n")
+  #
+  # check_na <- lapply(my_res, function(x) all(is.na(x))) # nolint
+  # check_na_flat <- unlist(check_na)
+  #
+  # if (any(check_na_flat) == TRUE) {
+  #   check_na <- as.numeric(which(lapply(my_res, function(x) {
+  #     all(is.na(x))
+  #   }) ))
+  #
+  #   my_res <- my_res[-check_na]
+  #
+  # }
 
   # assign names to sublists - otherwise `transfer_parallel_output` doesn't work
+  if (verbose >= 2)
+    cat(date(), " - Rename sublists...\n")
   for (i in seq_along(my_res)) {
     names(my_res[[i]]) <- c(
       "error", "pooled_error", "importance",
@@ -388,12 +557,15 @@ sperrorest <- function(formula,
   }
 
   # flatten list & calc sum
-  not_converged_folds <- sum(as.vector(vapply(
-    my_res, function(x) unlist(x[["non-converged-folds"]]),
-    FUN.VALUE = numeric(j)
-  )))
+  if (verbose >= 2)
+    cat(date(), " - Flatten lists...\n")
+  not_converged_folds <- sum(
+    unlist(lapply(my_res,
+                  function(x) unlist(x[["non-converged-folds"]]))))
 
   # transfer results of lapply() to respective data objects
+  if (verbose >= 2)
+    cat(date(), " - Transfer outputs...\n")
   my_res_mod <- transfer_parallel_output(my_res, res, impo, pooled_error) # nolint
 
   pooled_error <- as.data.frame(my_res_mod$pooled_error)
@@ -409,7 +581,9 @@ sperrorest <- function(formula,
     end_time <- Sys.time()
     my_bench <- list(
       system.info = Sys.info(), t_start = start_time,
-      t_end = end_time, cpu_cores = parallel::detectCores(),
+      t_end = end_time, cpu_cores = future::nbrOfWorkers(),
+      # was: parallel::detectCores(), which is the number of physically
+      # available cores, but only nbrOfWorkers() can be used by this process.
       runtime_performance = end_time - start_time
     )
     class(my_bench) <- "sperrorestbenchmark"
@@ -419,6 +593,9 @@ sperrorest <- function(formula,
 
   package_version <- packageVersion("sperrorest")
   class(package_version) <- "sperrorestpackageversion"
+
+  if (verbose >= 1)
+    cat(date(), "Done.\n")
 
   res <- list(
     error_rep = pooled_error, error_fold = my_res_mod$res,
@@ -433,11 +610,11 @@ sperrorest <- function(formula,
     }
     # print counter
     cat(sprintf(
-      "%s folds of %s total folds (%s rep * %s folds) did not converge.", # nolint
+      "%s folds of %s total folds (%s rep * %s folds) caused errors or returned NA (e.g., did not converge).", # nolint
       not_converged_folds, smp_args$repetition * smp_args$nfold,
       smp_args$repetition, smp_args$nfold
     ))
   }
 
-  return(res)
+  res
 }

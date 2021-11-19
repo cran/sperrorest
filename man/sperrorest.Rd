@@ -2,8 +2,7 @@
 % Please edit documentation in R/sperrorest.R
 \name{sperrorest}
 \alias{sperrorest}
-\title{Perform spatial error estimation and variable importance assessment in
-parallel}
+\title{Perform spatial error estimation and variable importance assessment}
 \usage{
 sperrorest(
   formula,
@@ -22,11 +21,15 @@ sperrorest(
   err_fun = err_default,
   imp_variables = NULL,
   imp_permutations = 1000,
+  imp_sample_from = c("test", "train", "all"),
   importance = !is.null(imp_variables),
   distance = FALSE,
   do_gc = 1,
   progress = "all",
-  benchmark = FALSE
+  benchmark = FALSE,
+  mode_rep = c("future", "sequential", "loop"),
+  mode_fold = c("sequential", "future", "loop"),
+  verbose = 0
 )
 }
 \arguments{
@@ -34,7 +37,8 @@ sperrorest(
 simple formulas without interactions or nonlinear terms should be used,
 e.g. \code{y~x1+x2+x3} but not \code{y~x1*x2+log(x3)}. Formulas involving interaction
 and nonlinear terms may possibly work for error estimation but not for
-variable importance assessment, but should be used with caution.}
+variable importance assessment, but should be used with caution.
+The formula \code{y~...} is not supported, but \code{y~1} (i.e. no predictors) is.}
 
 \item{data}{a \code{data.frame} with predictor and response variables. Training
 and test samples will be drawn from this data set by \code{train_fun} and
@@ -87,6 +91,15 @@ which permutation-based variable importance assessment is performed. If
 \item{imp_permutations}{(optional; used if \code{importance = TRUE}). Number of
 permutations used for variable importance assessment.}
 
+\item{imp_sample_from}{(default: \code{"test"}): specified if the permuted feature
+values should be taken from the test set, the training set (a rather unlikely
+choice), or the entire sample (\code{"all"}). The latter is useful in
+leave-one-out resampling situations where the test set is simply too small
+to perform any kind of resampling. In any case importances are
+always estimates on the test set. (Note that resampling with replacement is
+used if the test set is larger than the set from which the permuted values
+are to be taken.)}
+
 \item{importance}{logical (default: \code{FALSE}): perform permutation-based
 variable importance assessment?}
 
@@ -105,6 +118,18 @@ only or \code{FALSE} for no progress information.}
 
 \item{benchmark}{(optional) logical (default: \code{FALSE}): if \code{TRUE}, perform
 benchmarking and return \code{sperrorestbenchmark} object.}
+
+\item{mode_rep, mode_fold}{character (default: \code{"future"} and \code{"sequential"},
+respectively): specifies whether to parallelize the execution at the repetition
+level, at the fold level, or not at all.
+Parallel execution uses \code{future.apply::future_lapply()} (see details below).
+It is only possible to parallelize at the repetition level or at
+the fold level.
+The \code{"loop"} option uses a \code{for} loop instead of an \code{lappy}
+function; this option is for debugging purposes.}
+
+\item{verbose}{Controls the amount of information printed while processing.
+Defaults to 0 (no output).}
 }
 \value{
 A list (object of class {sperrorest}) with (up to) six components:
@@ -138,10 +163,22 @@ multiple child functions, must be defined in one function.
 
 Running in parallel is supported via package \CRANpkg{future}.
 Have a look at \code{vignette("future-1-overview", package = "future")}.
-In short: Choose a backend and specify the amount of workers, then call
-\code{sperrorest()} as usual. Example:\if{html}{\out{<div class="r">}}\preformatted{future::plan(future.callr::callr, workers = 2)
+In short: Choose a backend and specify the number of workers, then call
+\code{sperrorest()} as usual. Example:\if{html}{\out{<div class="sourceCode r">}}\preformatted{future::plan(future.callr::callr, workers = 2)
 sperrorest()
 }\if{html}{\out{</div>}}
+
+Parallelization at the repetition is recommended when using
+repeated cross-validation. If the 'granularity' of parallelized
+function calls is too fine, the overall runtime will be very
+poor since the overhead for passing arguments and handling
+environments becomes too large. Use fold-level parallelization
+only when the processing time of individual folds is very
+large and the number of repetitions is small or equals 1.
+
+Note that nested calls to \code{future} are not possible.
+Therefore a sequential \code{sperrorest} call should be used for
+hyperparameter tuning in a nested cross-validation.
 }
 
 \examples{
@@ -216,14 +253,16 @@ the assessment of prediction rules in remote sensing: the R package
 'sperrorest'.
 2012 IEEE International Geoscience and Remote Sensing Symposium (IGARSS),
 23-27 July 2012, p. 5372-5375.
+\url{https://ieeexplore.ieee.org/document/6352393}
 
 Brenning, A. 2005. Spatial prediction models for landslide hazards: review,
 comparison and evaluation. Natural Hazards and Earth System Sciences,
-5(6): 853-862.
+5(6), 853-862. \doi{10.5194/nhess-5-853-2005}
 
-Brenning, A., S. Long & P. Fieguth. Forthcoming. Detecting rock glacier flow
-structures using Gabor filters and IKONOS imagery.
-Submitted to Remote Sensing of Environment.
+Brenning, A., S. Long & P. Fieguth. 2012. Detecting rock glacier
+flow structures using Gabor filters and IKONOS imagery.
+Remote Sensing of Environment, 125, 227-237.
+\doi{10.1016/j.rse.2012.07.005}
 
 Russ, G. & A. Brenning. 2010a. Data mining in precision agriculture:
 Management of spatial information. In 13th International Conference on

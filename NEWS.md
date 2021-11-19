@@ -1,5 +1,31 @@
 <!-- NEWS.md is maintained by https://cynkra.github.io/fledge, do not edit -->
 
+# sperrorest 3.0.4
+
+- implemented parallelization modes at fold and repetition levels
+- more flexible permutation options (especially for LOO CV)
+- handle formulas with 0 or 1 predictor(s), e.g. y~1
+- updated vignette
+
+
+# sperrorest 3.0.3.0001
+
+- "fixed train_fun / test_fun issue
+- more flexible parallelization of `add.distance`
+
+
+# sperrorest 3.0.3
+
+- added parallelization modes (arguments `mode_rep` and `mode_fold`)
+- more flexible permutation (argument `imp_sample_from`)
+- updated vignette
+
+
+# sperrorest 3.0.2.9000
+
+- `partition_disc()`: set default value of arg `buffer` to 0 instead of NULL, fixes #61
+
+
 # sperrorest 3.0.2
 
 - `partition_disc()`: set default value of arg `buffer` to 0 instead of NULL, fixes #61
@@ -17,7 +43,7 @@
 ## Breaking
 
 - All parallel modes got removed in favor of using parallelism via package {future}.
-  This simplifies usage a lot and helps simplyifing future maintenance.
+  This simplifies usage a lot and helps simplifying future maintenance.
   Also it gives users the freedom to choose the parallel backend on their own.
 - `sperrorest()` run sequentially by default again rather than in parallel.
 
@@ -91,12 +117,12 @@
 
 ## Bugfixes
   * partial matching of arguments
-  * account for factor levels only present in test data but missing in training data. Previously, {sperrorest} errored during the predict step when this case occured. Now, this is accounted for and an informative message is given. 
+  * account for factor levels only present in test data but missing in training data. Previously, {sperrorest} errored during the predict step when this occurred. Now, this is accounted for and an informative message is given. 
 
 # sperrorest 1.0.0 (08-Mar-2017)
 
 ## New features
-  * add `parsperrorest()`: This function lets you exexute `sperrorest()` in parallel. It includes two modes (`par.mode = 1` and `par.mode = 2`) which use different   parallelization approaches in the background. See `?parsperrorest()` for more details.
+  * add `parsperrorest()`: This function lets you execute `sperrorest()` in parallel. It includes two modes (`par.mode = 1` and `par.mode = 2`) which use different   parallelization approaches in the background. See `?parsperrorest()` for more details.
   
   * add `partition.factor.cv()`: This resampling method enables partitioning based 
   on a given factor variable. This can be used, for example, to resample 

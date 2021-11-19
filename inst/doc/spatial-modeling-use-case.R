@@ -88,12 +88,13 @@ res_lda_nsp <- sperrorest(fo,
   pred_fun = lda_predfun,
   pred_args = list(fac = "field"),
   smp_fun = partition_cv,
-  smp_args = list(repetition = 1:10, nfold = 5),
+  smp_args = list(repetition = 1:3, nfold = 5),
+  mode_rep = "sequential",
   progress = FALSE
 )
 
 ## -----------------------------------------------------------------------------
-lapply(res_lda_nsp$error_rep, summary)
+summary(res_lda_nsp$error_rep)
 
 ## ----fig.width=7, fig.asp=0.5-------------------------------------------------
 resamp <- partition_factor_cv(maipo, nfold = 5, repetition = 1:1, fac = "field")
@@ -106,13 +107,14 @@ res_lda_sp <- sperrorest(fo,
   pred_fun = lda_predfun,
   pred_args = list(fac = "field"),
   smp_fun = partition_factor_cv,
-  smp_args = list(fac = "field", repetition = 1:10, nfold = 5),
+  smp_args = list(fac = "field", repetition = 1:3, nfold = 5),
+  mode_rep = "sequential",
   benchmark = TRUE, progress = FALSE
 )
 res_lda_sp$benchmark$runtime_performance
 
 ## -----------------------------------------------------------------------------
-lapply(res_lda_sp$error_rep, summary)
+summary(res_lda_sp$error_rep)
 
 ## ----def-rf-predfun-----------------------------------------------------------
 rf_predfun <- function(object, newdata, fac = NULL) {
@@ -143,14 +145,15 @@ res_rf_sp <- sperrorest(fo,
   smp_fun = partition_factor_cv,
   smp_args = list(
     fac = "field",
-    repetition = 1:10, nfold = 5
+    repetition = 1:3, nfold = 5
   ),
+  mode_rep = "sequential",
   benchmark = TRUE, progress = 2
 )
 
 ## -----------------------------------------------------------------------------
-lapply(res_rf_sp$error_rep, summary)
+summary(res_rf_sp$error_rep)
 
 ## -----------------------------------------------------------------------------
-summary(res_rf_sp$error_rep$test_accuracy)
+summary(res_rf_sp$error_rep)["test_accuracy",]
 

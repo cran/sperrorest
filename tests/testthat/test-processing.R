@@ -1,8 +1,5 @@
-context("processing.R")
-
 library("rpart")
 library("MASS")
-
 # runfolds Sun May 21 22:58:39 2017 ------------------------------
 
 test_that("runfolds works on missing factor levels in
@@ -61,7 +58,7 @@ test_that("runfolds works on glm example", {
     coords = c("x", "y"), progress = 1, pooled_obs_train = c(),
     pooled_obs_test = c(), err_fun = err_default
   ) -> runfolds_single
-  expect_equal(length(runfolds_single), 8)
+  expect_equal(length(runfolds_single), 9)
 })
 
 test_that("runfolds works on LDA example", {
@@ -106,7 +103,7 @@ test_that("runfolds works on LDA example", {
     pooled_obs_train = c(),
     pooled_obs_test = c(), err_fun = err_default
   )
-  expect_equal(length(runfolds_single), 8)
+  expect_equal(length(runfolds_single), 9)
 })
 
 test_that("runfolds works on rpart example", {
@@ -141,7 +138,7 @@ test_that("runfolds works on rpart example", {
     pooled_obs_train = c(),
     pooled_obs_test = c(), err_fun = err_default
   )
-  expect_equal(length(runfolds_single), 8)
+  expect_equal(length(runfolds_single), 9)
 })
 
 # runreps Sun May 21 23:07:03 2017 ------------------------------
@@ -278,3 +275,4 @@ test_that("runfolds works on missing factor levels in
   })
   expect_equal(length(runfolds_single), 6)
 })
+

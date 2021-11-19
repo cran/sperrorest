@@ -55,7 +55,7 @@ dataset_distance <- function(d1,
   if (!is.null(fun)) {
     di <- fun(di, ...)
   }
-  return(di)
+  di
 }
 
 
@@ -66,6 +66,9 @@ dataset_distance <- function(d1,
 #' @inheritParams partition_cv
 #'
 #' @param object [resampling] or [represampling] object.
+#' @param mode Use `future.apply::future_lapply()` for parallelized
+#'   execution if `mode = "future"`, and `lapply` for sequential
+#'   execution otherwise (`mode = "sequential"`)
 #' @param ... Additional arguments to [dataset_distance] and
 #'   [add.distance.resampling], respectively.
 #'
@@ -86,8 +89,8 @@ dataset_distance <- function(d1,
 #' # Muenchow et al. (2012), see ?ecuador
 #' nsp.parti <- partition_cv(ecuador)
 #' sp.parti <- partition_kmeans(ecuador)
-#' nsp.parti <- add.distance(nsp.parti, ecuador)
-#' sp.parti <- add.distance(sp.parti, ecuador)
+#' nsp.parti <- add.distance(nsp.parti, data = ecuador)
+#' sp.parti <- add.distance(sp.parti, data = ecuador)
 #' # non-spatial partioning: very small test-training distance:
 #' nsp.parti[[1]][[1]]$distance
 #' # spatial partitioning: more substantial distance, depending on number of
@@ -109,17 +112,27 @@ add.distance.resampling <- function(object, data, coords = c("x", "y"), ...) { #
     )
     object[[j]]$distance <- test_dist
   }
-  return(object)
+  object
 }
 
 #' @rdname add.distance
 #' @name add.distance.represampling
 #' @method add.distance represampling
 #' @export
-add.distance.represampling <- function(object, ...) { # nolint
-  object <- lapply(object, add.distance.resampling, ...) # nolint
+add.distance.represampling <- function(object,
+                                       data, coords = c("x", "y"),
+                                       mode = "future", ...) { # nolint
+  if (mode == "future") {
+    object <- future.apply::future_lapply(object,
+                                          add.distance.resampling,
+                                          data = data, coords = coords,
+                                          ...) # nolint
+  } else {
+    object <- lapply(object, add.distance.resampling,
+                     data = data, coords = coords, ...)
+  }
   class(object) <- "represampling"
-  return(object)
+  object
 }
 
 #' @title Alphanumeric tile names
@@ -163,7 +176,7 @@ as.tilename.numeric <- function(x,
   stopifnot(x == round(x))
   x <- paste("X", x[1], ":Y", x[2], sep = "")
   class(x) <- "tilename"
-  return(x)
+  x
 }
 
 #' @rdname as.tilename
@@ -173,7 +186,7 @@ as.tilename.numeric <- function(x,
 as.character.tilename <- function(x,
                                   ...) {
   class(x) <- "character"
-  return(x)
+  x
 }
 
 #' @rdname as.tilename
@@ -189,7 +202,7 @@ as.numeric.tilename <- function(x, # nolint # nocov start
   x <- c(as.numeric(substring(x[1], 2)), as.numeric(substring(x[2], 2)))
   stopifnot(all(!is.na(x)))
   stopifnot(all(x >= 0))
-  return(x)
+  x
 }
 
 #' @rdname as.tilename
@@ -282,8 +295,7 @@ get_small_tiles <- function(tile, min_n = NULL, min_frac = 0, ignore = c()) {
   if (length(small_tile) > 0) {
     small_tile <- small_tile[order(n_tile[small_tile], decreasing = FALSE)] # nocov # nolint
   }
-  small_tile <- factor(small_tile, levels = levels(tile))
-  return(small_tile)
+  factor(small_tile, levels = levels(tile))
 }
 
 #' @title Determine the names of neighbouring tiles in a rectangular pattern
@@ -361,14 +373,14 @@ tile_neighbors <- function(nm, # nocov start # nolint
     nbr <- factor(nbr, levels = tileset)
   }
 
-  return(nbr)
+  nbr
 } # nocov end
 
 
 #' @title Resampling objects such as partitionings or bootstrap samples
 #'
 #' @description Create/coerce and print resampling objects, e.g., partitionings
-#'   or boostrap samples derived from a data set.
+#'   or bootstrap samples derived from a data set.
 #'
 #' @param object depending on the function/method, a list or a vector of type
 #'   factor defining a partitioning of the dataset.
@@ -466,7 +478,7 @@ as.resampling.factor <- function(object,
   # result is a list with nlevels (object) levels
   names(resampling) <- levels(object)
   class(resampling) <- "resampling"
-  return(resampling)
+  resampling
 }
 
 #' @rdname as.resampling
@@ -477,7 +489,7 @@ as.resampling.list <- function(object,
                                ...) {
   stopifnot(validate.resampling(object)) # nolint
   class(object) <- "resampling"
-  return(object)
+  object
 }
 
 #' @rdname as.resampling
@@ -501,7 +513,7 @@ validate.resampling <- function(object) { # nolint
       return(FALSE) # nocov
     }
   }
-  return(TRUE)
+  TRUE
 }
 
 #' @rdname as.resampling
@@ -527,7 +539,7 @@ print.resampling <- function(x,
 
 
 #' @title Resampling objects with repetition, i.e. sets of partitionings or
-#'   boostrap samples
+#'   bootstrap samples
 #'
 #' @description Functions for handling `represampling` objects, i.e. `list`s of
 #'   [resampling] objects.
@@ -597,7 +609,7 @@ as.represampling.list <- function(object,
   }
   object <- lapply(object, as.resampling) # nolint
   class(object) <- "represampling"
-  return(object)
+  object
 }
 
 #' @rdname as.represampling
