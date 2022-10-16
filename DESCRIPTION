@@ -2,7 +2,7 @@ Type: Package
 Package: sperrorest
 Title: Perform Spatial Error Estimation and Variable Importance
         Assessment
-Version: 3.0.4
+Version: 3.0.5
 Authors@R: 
     c(person(given = "Alexander",
              family = "Brenning",
@@ -35,12 +35,12 @@ ByteCompile: true
 Encoding: UTF-8
 LazyData: true
 LazyLoad: yes
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.0
 NeedsCompilation: no
-Packaged: 2021-11-19 13:59:46 UTC; yo54pow
+Packaged: 2022-10-12 16:39:19 UTC; yo54pow
 Author: Alexander Brenning [aut, cre] (<https://orcid.org/0000-0001-6640-679X>),
   Patrick Schratz [aut] (<https://orcid.org/0000-0003-0748-6624>),
   Tobias Herrmann [ctb] (<https://orcid.org/0000-0001-9768-0708>)
 Maintainer: Alexander Brenning <alexander.brenning@uni-jena.de>
 Repository: CRAN
-Date/Publication: 2021-11-19 14:20:02 UTC
+Date/Publication: 2022-10-16 12:50:02 UTC
